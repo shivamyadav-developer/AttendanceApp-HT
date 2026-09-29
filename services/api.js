@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'https://xnrrpsi8wu.ap-south-1.awsapprunner.com/api';
-// const BASE_URL = 'http://localhost:5001/api'; // Use this for local testing
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
 const api = {
     async request(endpoint, options = {}) {
