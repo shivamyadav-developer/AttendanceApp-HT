@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -17,6 +18,9 @@ import {
 import LocationDisclosureModal from "../components/LocationDisclosureModal";
 import authService from "../services/auth.service";
 import locationService from "../services/location.service";
+
+const SHIPMENT_USERNAME = "RC000400";
+const SHIPMENT_PASSWORD = "Password@123";
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
@@ -277,20 +281,63 @@ export default function LoginScreen() {
   // Manual Login with OnTrack API - allows login from anywhere
   const login = async () => {
     if (!username || !password) {
-      Alert.alert("Error", "Please enter both Employee Number and Password");
+      Alert.alert(
+        "Error",
+        "Please enter both Employee Number and Password"
+      );
       return;
     }
 
-    // Lock out the auto-login effect the moment the user commits to
-    // a manual login, so its result (if still in flight) gets ignored.
     manualLoginStartedRef.current = true;
 
     try {
       setChecking(true);
 
-      // ==========================
-      // LOGIN USING API
-      // ==========================
+      const enteredUsername = username.trim().toUpperCase();
+
+      // ==========================================
+      // SHIPMENT LOGIN
+      // ==========================================
+      if (enteredUsername === SHIPMENT_USERNAME) {
+        if (password !== SHIPMENT_PASSWORD) {
+          Alert.alert("Login Failed", "Invalid Shipment password.");
+          return;
+        }
+
+        const shipmentUser = {
+          employeeNumber: SHIPMENT_USERNAME,
+          username: SHIPMENT_USERNAME,
+          name: "Shipment User",
+          jobTitle: "SHIPMENT",
+          role: "SHIPMENT",
+        };
+
+        await AsyncStorage.setItem(
+          "userToken",
+          "shipment-local-token"
+        );
+
+        await AsyncStorage.setItem(
+          "userData",
+          JSON.stringify(shipmentUser)
+        );
+
+        await AsyncStorage.removeItem("savedCredentials");
+
+        Alert.alert(
+          "Login Successful",
+          "Welcome to Shipment Dashboard"
+        );
+
+        // Shipment Dashboard
+        router.replace("/(shipment)/new-trip");
+
+        return;
+      }
+
+      // ==========================================
+      // NORMAL LOGIN
+      // ==========================================
       const result = await authService.login(username, password);
 
       if (!result.success) {
@@ -300,16 +347,17 @@ export default function LoginScreen() {
 
       const user = result.user;
 
-      // Save credentials
       await AsyncStorage.setItem(
         "savedCredentials",
-        JSON.stringify({ username, password })
+        JSON.stringify({
+          username,
+          password,
+        })
       );
 
-      // Show the location disclosure every time the user logs in.
-      // Location tracking starts only after the user taps "Agree & Continue".
       setPendingUser(user);
       setShowLocationDisclosure(true);
+
     } catch (error) {
       console.log(error);
       Alert.alert("Error", "An error occurred during login.");
@@ -442,8 +490,11 @@ export default function LoginScreen() {
             </Text>
           </Text>
 
-          <Text style={styles.website}>Visit hometown.in</Text>
-
+          <TouchableOpacity
+            onPress={() => Linking.openURL("https://www.hometown.in/")}
+          >
+            <Text style={styles.website}>Visit hometown.in</Text>
+          </TouchableOpacity>
           <View style={styles.policyRow}>
             <MaterialIcons name="security" size={12} color="#D96A17" />
 

@@ -39,7 +39,7 @@ export default {
         slug: "myapp",
         version: "1.0.0",
         orientation: "default",
-        icon: "./assets/images/logo.png",
+        icon: "./assets/images/logo.jpg",
         scheme: "myapp",
         userInterfaceStyle: "automatic",
         newArchEnabled: true,
@@ -72,7 +72,7 @@ export default {
 
             adaptiveIcon: {
                 backgroundColor: "#E6F4FE",
-                foregroundImage: "./assets/images/logo.png",
+                foregroundImage: "./assets/images/logo.jpg",
                 backgroundImage:
                     "./assets/images/android-icon-background.png",
                 monochromeImage:
@@ -126,13 +126,10 @@ export default {
             [
                 "expo-splash-screen",
                 {
-                    image: "./assets/images/splash-icon.png",
+                    image: "./assets/images/logo.jpg",
                     imageWidth: 200,
                     resizeMode: "contain",
                     backgroundColor: "#ffffff",
-                    dark: {
-                        backgroundColor: "#000000",
-                    },
                 },
             ],
         ],

@@ -1,19 +1,24 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  View,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ScrollView,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 
 export default function NewTrip() {
+  const router = useRouter();
+
   const [mobileNumber, setMobileNumber] = useState("");
   const [transporter, setTransporter] = useState("");
   const [vehicleNumber, setVehicleNumber] = useState("");
+  const [fromAddress, setFromAddress] = useState("");
+  const [toAddress, setToAddress] = useState("");
 
   const [showTransporters, setShowTransporters] = useState(false);
 
@@ -23,7 +28,7 @@ export default function NewTrip() {
     "Transporter 3",
   ];
 
-  const createTrip = () => {
+  const saveAndNext = () => {
     if (!mobileNumber) {
       Alert.alert("Required", "Please enter mobile number");
       return;
@@ -47,21 +52,30 @@ export default function NewTrip() {
       return;
     }
 
+    if (!fromAddress.trim()) {
+      Alert.alert("Required", "Please enter starting address");
+      return;
+    }
+
+    if (!toAddress.trim()) {
+      Alert.alert("Required", "Please enter destination address");
+      return;
+    }
+
     const tripData = {
       mobileNumber,
       transporter,
       vehicleNumber,
+      fromAddress: fromAddress.trim(),
+      toAddress: toAddress.trim(),
     };
 
     console.log("New Trip:", tripData);
 
-    Alert.alert(
-      "Success",
-      "Trip created successfully"
-    );
-
     // Later we will call:
     // shipmentService.createTrip(tripData)
+
+    router.push("/(shipment)/doc-upload");
   };
 
   return (
@@ -205,21 +219,83 @@ export default function NewTrip() {
         />
       </View>
 
-      {/* Create Trip */}
+      {/* Route */}
+
+      <View style={styles.routeSection}>
+        <View style={styles.routeLine}>
+          <View style={styles.routeDotStart} />
+          <View style={styles.routeConnector} />
+          <View style={styles.routeDotEnd} />
+        </View>
+
+        <View style={styles.routeFields}>
+          {/* From Address */}
+
+          <Text style={styles.label}>
+            From Address
+          </Text>
+
+          <View style={styles.textAreaContainer}>
+            <MaterialIcons
+              name="trip-origin"
+              size={20}
+              color="#D96A17"
+              style={styles.textAreaIcon}
+            />
+
+            <TextInput
+              placeholder="Enter starting address"
+              value={fromAddress}
+              onChangeText={setFromAddress}
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+              style={styles.textArea}
+            />
+          </View>
+
+          {/* To Address */}
+
+          <Text style={styles.label}>
+            To Address
+          </Text>
+
+          <View style={styles.textAreaContainer}>
+            <MaterialIcons
+              name="location-on"
+              size={20}
+              color="#D96A17"
+              style={styles.textAreaIcon}
+            />
+
+            <TextInput
+              placeholder="Enter destination address"
+              value={toAddress}
+              onChangeText={setToAddress}
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+              style={styles.textArea}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Save & Next */}
 
       <TouchableOpacity
         style={styles.button}
-        onPress={createTrip}
+        onPress={saveAndNext}
       >
+        <Text style={styles.buttonText}>
+          Save & Next
+        </Text>
+
         <MaterialIcons
-          name="add-road"
-          size={21}
+          name="arrow-forward"
+          size={20}
           color="#fff"
         />
-
-        <Text style={styles.buttonText}>
-          Create Trip
-        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -234,6 +310,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 40,
+    marginTop: 50,
   },
 
   header: {
@@ -268,8 +345,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#3A2415",
-    marginBottom: 7,
-    marginTop: 16,
+    marginBottom: 6,
+    marginTop: 10,
   },
 
   inputContainer: {
@@ -320,6 +397,67 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 15,
     color: "#333",
+  },
+
+  routeSection: {
+    flexDirection: "row",
+    marginTop: 4,
+  },
+
+  routeLine: {
+    width: 20,
+    alignItems: "center",
+    paddingTop: 42,
+  },
+
+  routeDotStart: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#D96A17",
+  },
+
+  routeConnector: {
+    width: 2,
+    flex: 1,
+    minHeight: 44,
+    backgroundColor: "#EED9C4",
+    marginVertical: 4,
+  },
+
+  routeDotEnd: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+    backgroundColor: "#D96A17",
+  },
+
+  routeFields: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  textAreaContainer: {
+    minHeight: 58,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flexDirection: "row",
+  },
+
+  textAreaIcon: {
+    marginTop: 2,
+    marginRight: 10,
+  },
+
+  textArea: {
+    flex: 1,
+    fontSize: 15,
+    color: "#222",
+    minHeight: 34,
   },
 
   button: {
