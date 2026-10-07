@@ -62,6 +62,7 @@ export default {
         },
 
         android: {
+            versionCode: 8,
             permissions: [
                 "ACCESS_FINE_LOCATION",
                 "ACCESS_COARSE_LOCATION",
