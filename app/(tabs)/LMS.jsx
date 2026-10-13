@@ -7,14 +7,15 @@ import {
   Alert,
   Linking,
   Modal,
+  Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import lmsService from "../../services/lms.service";
 
 // ─── Modal "screens" ───────────────────────────────────────────────
@@ -24,9 +25,17 @@ import lmsService from "../../services/lms.service";
 // 'result'    → quiz result
 // ───────────────────────────────────────────────────────────────────
 
+// Courses shown at a time in the list
+const PAGE_SIZE = 10;
+
 export default function LMS() {
+  const insets = useSafeAreaInsets();
+
   const [user, setUser] = useState(null);
   const [courses, setCourses] = useState([]);
+
+  // How many courses are shown in the list ("Show More" adds 10 more)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [employeeNumber, setEmployeeNumber] = useState(null);
@@ -277,18 +286,20 @@ export default function LMS() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-    >
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
         <Text style={styles.smallTitle}>LEARNING HUB</Text>
         <Text style={styles.title}>My Learning</Text>
         <Text style={styles.subtitle}>Complete courses and grow your retail skills.</Text>
 
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
 
       {/* Progress card */}
       <View style={styles.progressCard}>
@@ -317,7 +328,7 @@ export default function LMS() {
 
       {/* Course list */}
       <Text style={styles.sectionTitle}>Available Courses</Text>
-      {courses.map((course, i) => (
+      {courses.slice(0, visibleCount).map((course, i) => (
         <TouchableOpacity
           key={course._id || i}
           style={styles.courseCard}
@@ -350,6 +361,22 @@ export default function LMS() {
         </TouchableOpacity>
       ))}
 
+      {/* Show More */}
+      {courses.length > visibleCount && (
+        <View style={styles.showMoreWrapper}>
+          <Text style={styles.showMoreCount}>
+            Showing {visibleCount} of {courses.length} courses
+          </Text>
+          <TouchableOpacity
+            style={styles.showMoreButton}
+            onPress={() => setVisibleCount((count) => count + PAGE_SIZE)}
+          >
+            <Text style={styles.showMoreText}>Show More</Text>
+            <Ionicons name="chevron-down" size={16} color="#0B2D4A" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={{ height: 40 }} />
 
       {/* ── Single Modal with 3 inner screens ── */}
@@ -358,42 +385,57 @@ export default function LMS() {
         transparent={false}
         visible={modalScreen !== null}
         onRequestClose={closeModal}
+        statusBarTranslucent
       >
-        <SafeAreaView style={styles.modalContainer}>
+        <View
+          style={[
+            styles.modalContainer,
+            { paddingBottom: Platform.OS === "ios" ? insets.bottom : 0 },
+          ]}
+        >
+          {/* Navy strip behind the status bar (clock, battery) */}
+          <View style={{ height: insets.top, backgroundColor: "#0B2D4A" }} />
           {/* ── SCREEN 1: Course Detail ── */}
           {modalScreen === "detail" && selectedCourse && (
             <View style={{ flex: 1 }}>
               {/* Top bar */}
               <View style={styles.detailTopBar}>
                 <TouchableOpacity onPress={closeModal} style={styles.backBtn}>
-                  <Ionicons name="arrow-back" size={22} color="#0B2D4A" />
+                  <Ionicons name="arrow-back" size={22} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.detailTopTitle} numberOfLines={1}>
                   Course Details
                 </Text>
-                <View style={{ width: 36 }} />
               </View>
 
               <ScrollView contentContainerStyle={styles.detailScroll}>
                 {/* Course Title */}
-                <Text style={styles.detailTitle}>{selectedCourse.title}</Text>
-                <Text style={styles.detailSubtitle}>{selectedCourse.description}</Text>
+                <View style={styles.detailHero}>
+                  <View style={styles.detailHeroIcon}>
+                    <Ionicons name="book-outline" size={24} color="#ff7b00" />
+                  </View>
+                  <Text style={styles.detailTitle}>{selectedCourse.title}</Text>
+                  <Text style={styles.detailSubtitle}>{selectedCourse.description}</Text>
+                </View>
 
-                {/* Info Items - Key Value Pairs */}
+                {/* Info Items */}
                 <View style={styles.infoContainer}>
-                  <View style={styles.infoRow}>
+                  <View style={styles.infoTile}>
+                    <Ionicons name="business-outline" size={18} color="#ff7b00" />
+                    <Text style={styles.infoValue} numberOfLines={2}>
+                      {selectedCourse.department || "N/A"}
+                    </Text>
                     <Text style={styles.infoLabel}>Department</Text>
-                    <Text style={styles.infoValue}>{selectedCourse.department || "N/A"}</Text>
                   </View>
-                  <View style={styles.infoDivider} />
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Passing Percentage</Text>
+                  <View style={styles.infoTile}>
+                    <Ionicons name="ribbon-outline" size={18} color="#ff7b00" />
                     <Text style={styles.infoValue}>{selectedCourse.passingPercentage}%</Text>
+                    <Text style={styles.infoLabel}>To Pass</Text>
                   </View>
-                  <View style={styles.infoDivider} />
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Questions</Text>
+                  <View style={styles.infoTile}>
+                    <Ionicons name="help-circle-outline" size={18} color="#ff7b00" />
                     <Text style={styles.infoValue}>{selectedCourse.questionCount || "Multiple"}</Text>
+                    <Text style={styles.infoLabel}>Questions</Text>
                   </View>
                 </View>
 
@@ -406,7 +448,9 @@ export default function LMS() {
                         style={styles.resourceRow}
                         onPress={() => Linking.openURL(selectedCourse.pdfUrl)}
                       >
-                        <Ionicons name="document-text-outline" size={20} color="#C62828" />
+                        <View style={[styles.resourceIcon, { backgroundColor: "#FDECEC" }]}>
+                          <Ionicons name="document-text-outline" size={18} color="#C62828" />
+                        </View>
                         <Text style={styles.resourceText}>Course PDF Guide</Text>
                         <Ionicons name="open-outline" size={16} color="#999" />
                       </TouchableOpacity>
@@ -416,7 +460,9 @@ export default function LMS() {
                         style={styles.resourceRow}
                         onPress={() => Linking.openURL(selectedCourse.videoUrl)}
                       >
-                        <Ionicons name="videocam-outline" size={20} color="#1565C0" />
+                        <View style={[styles.resourceIcon, { backgroundColor: "#E8F1FB" }]}>
+                          <Ionicons name="videocam-outline" size={18} color="#1565C0" />
+                        </View>
                         <Text style={styles.resourceText}>Training Video</Text>
                         <Ionicons name="open-outline" size={16} color="#999" />
                       </TouchableOpacity>
@@ -443,7 +489,7 @@ export default function LMS() {
                             <View key={index} style={styles.contentPointItem}>
                               <View style={styles.contentPointBullet}>
                                 <Ionicons
-                                  name={item.isNumbered ? "number-circle" : "checkbox-outline"}
+                                  name={item.isNumbered ? "checkmark-circle-outline" : "checkbox-outline"}
                                   size={20}
                                   color="#ff7b00"
                                 />
@@ -498,7 +544,7 @@ export default function LMS() {
             <View style={styles.quizContainer}>
               <View style={styles.quizHeader}>
                 <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                  <Ionicons name="close" size={24} color="#666" />
+                  <Ionicons name="close" size={22} color="#fff" />
                 </TouchableOpacity>
                 <Text style={styles.quizTitle} numberOfLines={1}>
                   {selectedCourse?.title}
@@ -611,12 +657,22 @@ export default function LMS() {
 
           {/* ── SCREEN 3: Result ── */}
           {modalScreen === "result" && (
-            <View style={styles.resultContainer}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.quizHeader}>
+                <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                  <Ionicons name="close" size={22} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.resultHeaderTitle} numberOfLines={1}>
+                  Quiz Result
+                </Text>
+              </View>
+
+              <View style={styles.resultContainer}>
               <View style={styles.resultCard}>
                 <View style={styles.resultIcon}>
                   <Ionicons
                     name={result?.passed ? "trophy" : "school"}
-                    size={60}
+                    size={48}
                     color={result?.passed ? "#FFD700" : "#ff7b00"}
                   />
                 </View>
@@ -672,11 +728,13 @@ export default function LMS() {
                   <Text style={styles.closeQuizButtonText}>Back to Courses</Text>
                 </TouchableOpacity>
               </View>
+              </View>
             </View>
           )}
-        </SafeAreaView>
+        </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -686,17 +744,17 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: 10, color: "#666", fontSize: 14 },
 
   // Header
-  header: { backgroundColor: "#0B2D4A", paddingTop: 60, paddingHorizontal: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
-  smallTitle: { color: "#F5A623", fontSize: 10, fontWeight: "700", letterSpacing: 1 },
-  title: { color: "#fff", fontSize: 30, fontWeight: "bold", marginTop: 6 },
-  subtitle: { color: "#D8DDE5", marginTop: 6 },
+  header: { backgroundColor: "#0F2D52", height: 160, paddingTop: 50, paddingHorizontal: 18, justifyContent: "center", borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  smallTitle: { color: "#F5A623", fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
+  title: { color: "#fff", fontSize: 22, fontWeight: "bold", marginTop: 3 },
+  subtitle: { color: "#D5DCE5", fontSize: 12, marginTop: 3 },
   userName: { color: "#D96A17", fontSize: 12, marginTop: 8, fontWeight: "500" },
 
   // Progress card
   progressCard: {
     backgroundColor: "#fff",
     marginHorizontal: 20,
-    marginTop: -25,
+    marginTop: 14,
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 10,   // Reduced from 18
@@ -811,27 +869,34 @@ playButton: {
   alignItems: "center",
 },
 
+  // Show more
+  showMoreWrapper: { alignItems: "center", marginTop: 4 },
+  showMoreCount: { fontSize: 12, color: "#777", marginBottom: 8 },
+  showMoreButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingLeft: 20, paddingRight: 16, paddingVertical: 9, backgroundColor: "#E1E7F0", borderRadius: 20 },
+  showMoreText: { color: "#0B2D4A", fontSize: 14, fontWeight: "700" },
+
   // Modal shared
   modalContainer: { flex: 1, backgroundColor: "#F7F8FA" },
 
   // Detail screen
-  detailTopBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 19, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E5E5" },
-  backBtn: { padding: 4 },
-  detailTopTitle: { fontSize: 16, fontWeight: "bold", color: "#0B2D4A", flex: 1, textAlign: "center" },
-  detailScroll: { padding: 20 },
+  detailTopBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18, backgroundColor: "#0B2D4A", borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  backBtn: { width: 42, height: 42, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  detailTopTitle: { fontSize: 20, fontWeight: "bold", color: "#fff", flex: 1 },
+  detailScroll: { padding: 16 },
 
-  detailTitle: { fontSize: 24, fontWeight: "bold", color: "#0B2D4A", textAlign: "center", marginBottom: 6 },
-  detailSubtitle: { fontSize: 14, color: "#777", textAlign: "center", marginBottom: 20 },
+  detailHero: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 12, elevation: 1 },
+  detailHeroIcon: { width: 44, height: 44, borderRadius: 13, backgroundColor: "#FFF4EC", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  detailTitle: { fontSize: 18, fontWeight: "bold", color: "#0B2D4A" },
+  detailSubtitle: { fontSize: 13, color: "#777", lineHeight: 19, marginTop: 4 },
 
-  // Info Container
-  infoContainer: { backgroundColor: "#fff", borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 },
-  infoLabel: { fontSize: 14, color: "#666", fontWeight: "500" },
-  infoValue: { fontSize: 14, color: "#0B2D4A", fontWeight: "600" },
-  infoDivider: { height: 1, backgroundColor: "#F0F0F0" },
+  // Info tiles
+  infoContainer: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  infoTile: { flex: 1, backgroundColor: "#fff", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 8, alignItems: "center", elevation: 1 },
+  infoValue: { fontSize: 14, color: "#0B2D4A", fontWeight: "700", textAlign: "center", marginTop: 6 },
+  infoLabel: { fontSize: 11, color: "#777", marginTop: 2 },
 
-  detailSection: { backgroundColor: "#fff", borderRadius: 12, padding: 16, marginBottom: 16, elevation: 2 },
-  detailSectionTitle: { fontSize: 16, fontWeight: "700", color: "#0B2D4A", marginBottom: 12 },
+  detailSection: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 12, elevation: 1 },
+  detailSectionTitle: { fontSize: 15, fontWeight: "700", color: "#0B2D4A", marginBottom: 10 },
 
   // Content points styles
   contentPointsContainer: { marginTop: 4 },
@@ -846,18 +911,19 @@ playButton: {
   contentTextItem: { marginBottom: 8 },
   contentPlainText: { fontSize: 14, color: "#444", lineHeight: 20 },
 
-  resourceRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: "#F0F0F0" },
+  resourceRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: "#F0F0F0" },
+  resourceIcon: { width: 34, height: 34, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   resourceText: { flex: 1, fontSize: 14, color: "#333", fontWeight: "500" },
-  startButton: { backgroundColor: "#ff7b00", flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 8 },
-  startButtonText: { color: "#fff", fontSize: 17, fontWeight: "bold" },
+  startButton: { backgroundColor: "#ff7b00", flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, paddingVertical: 14, borderRadius: 14, marginTop: 4 },
+  startButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 
   // Quiz screen
   quizContainer: { flex: 1 },
-  quizHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 20, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E5E5" },
-  closeButton: { padding: 4 },
-  quizTitle: { fontSize: 16, fontWeight: "bold", color: "#0B2D4A", flex: 1, textAlign: "center" },
-  progressIndicator: { backgroundColor: "#ff7b0010", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  progressText: { fontSize: 12, fontWeight: "600", color: "#ff7b00" },
+  quizHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 18, backgroundColor: "#0B2D4A", borderBottomLeftRadius: 22, borderBottomRightRadius: 22 },
+  closeButton: { width: 42, height: 42, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.15)", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  quizTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", flex: 1 },
+  progressIndicator: { backgroundColor: "#ff7b00", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginLeft: 10 },
+  progressText: { fontSize: 12, fontWeight: "700", color: "#fff" },
   quizContent: { flex: 1, padding: 10 },
   questionCard: { backgroundColor: "#fff", borderRadius: 16, padding: 10, marginBottom: 10, elevation: 2 },
   questionNumber: { fontSize: 12, color: "#ff7b00", fontWeight: "600", marginBottom: 10 },
@@ -907,10 +973,11 @@ playButton: {
   },
 
   // Result screen
-  resultContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 10 },
-  resultCard: { backgroundColor: "#fff", borderRadius: 24, padding: 20, width: "100%", alignItems: "center", elevation: 4 },
-  resultIcon: { width: 100, height: 100, borderRadius: 50, backgroundColor: "#FFF4EC", justifyContent: "center", alignItems: "center", marginBottom: 20 },
-  resultTitle: { fontSize: 24, fontWeight: "bold", color: "#0B2D4A", marginBottom: 10 },
+  resultHeaderTitle: { fontSize: 20, fontWeight: "bold", color: "#fff", flex: 1 },
+  resultContainer: { flex: 1, alignItems: "center", padding: 16 },
+  resultCard: { backgroundColor: "#fff", borderRadius: 18, padding: 18, width: "100%", alignItems: "center", elevation: 2 },
+  resultIcon: { width: 84, height: 84, borderRadius: 42, backgroundColor: "#FFF4EC", justifyContent: "center", alignItems: "center", marginBottom: 14 },
+  resultTitle: { fontSize: 22, fontWeight: "bold", color: "#0B2D4A", marginBottom: 12 },
   scoreCard: { backgroundColor: "#F7F8FA", borderRadius: 16, padding: 20, width: "100%", alignItems: "center", marginBottom: 10 },
   scoreLabel: { fontSize: 14, color: "#666", marginBottom: 8 },
   scoreValue: { fontSize: 32, fontWeight: "bold", color: "#ff7b00", marginBottom: 12 },
@@ -922,6 +989,6 @@ playButton: {
   resultLabel: { fontSize: 14, color: "#666" },
   resultValue: { fontSize: 14, fontWeight: "600" },
   resultMessage: { fontSize: 14, color: "#666", textAlign: "center", lineHeight: 20, marginBottom: 24 },
-  closeQuizButton: { backgroundColor: "#ff7b00", paddingHorizontal: 30, paddingVertical: 14, borderRadius: 25, width: "100%", alignItems: "center" },
+  closeQuizButton: { backgroundColor: "#ff7b00", paddingHorizontal: 30, paddingVertical: 14, borderRadius: 14, width: "100%", alignItems: "center" },
   closeQuizButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });

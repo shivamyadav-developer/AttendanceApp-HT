@@ -160,11 +160,8 @@ export default function ProfileSettings({ role }) {
   const hasExited = !!user?.exitDate;
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -172,38 +169,42 @@ export default function ProfileSettings({ role }) {
           </Text>
         </View>
 
-        <Text style={styles.name}>
-          {user?.name || "N/A"}
-        </Text>
-
-        <Text style={styles.designation}>
-          {user?.jobTitle || user?.role || "Employee"}
-        </Text>
-
-        <View style={styles.roleBadge}>
-          <Text style={styles.roleBadgeText}>
-            {getRoleName()}
+        <View style={styles.headerInfo}>
+          <Text style={styles.name} numberOfLines={1}>
+            {user?.name || "N/A"}
           </Text>
-        </View>
 
-        <View style={styles.statusBadge}>
-          <View
-            style={[
-              styles.statusDot,
-              {
-                backgroundColor: isActive
-                  ? "#2ECC71"
-                  : "#C0392B",
-              },
-            ]}
-          />
+          <View style={styles.badgeRow}>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>
+                {getRoleName()}
+              </Text>
+            </View>
 
-          <Text style={styles.statusText}>
-            {isActive ? "Active" : "Inactive"}
-          </Text>
+            <View style={styles.statusBadge}>
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: isActive
+                      ? "#2ECC71"
+                      : "#C0392B",
+                  },
+                ]}
+              />
+
+              <Text style={styles.statusText}>
+                {isActive ? "Active" : "Inactive"}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Store & Manager */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>
@@ -417,72 +418,7 @@ export default function ProfileSettings({ role }) {
         />
       </View>
 
-      {/* Settings */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>
-          Settings
-        </Text>
-
-        <TouchableOpacity
-          style={styles.settingsRow}
-          onPress={() => {
-            Alert.alert(
-              "Change Password",
-              "This feature is not available yet."
-            );
-          }}
-        >
-          <View style={styles.settingsIconBox}>
-            <MaterialIcons
-              name="lock"
-              size={20}
-              color="#0F2D52"
-            />
-          </View>
-
-          <Text style={styles.settingsLabel}>
-            Change Password
-          </Text>
-
-          <MaterialIcons
-            name="chevron-right"
-            size={22}
-            color="#9CA3AF"
-          />
-        </TouchableOpacity>
-
-        <View style={styles.rowBorder} />
-
-        <TouchableOpacity
-          style={styles.settingsRow}
-          onPress={() => {
-            Alert.alert(
-              "App Settings",
-              "App settings will be available here."
-            );
-          }}
-        >
-          <View style={styles.settingsIconBox}>
-            <MaterialIcons
-              name="settings"
-              size={20}
-              color="#0F2D52"
-            />
-          </View>
-
-          <Text style={styles.settingsLabel}>
-            App Settings
-          </Text>
-
-          <MaterialIcons
-            name="chevron-right"
-            size={22}
-            color="#9CA3AF"
-          />
-        </TouchableOpacity>
-
-        <View style={styles.rowBorder} />
-
+      <View style={styles.privacyCard}>
         {/* PRIVACY POLICY */}
         <TouchableOpacity
           style={styles.settingsRow}
@@ -491,7 +427,7 @@ export default function ProfileSettings({ role }) {
           <View style={styles.settingsIconBox}>
             <MaterialIcons
               name="privacy-tip"
-              size={20}
+              size={17}
               color="#0F2D52"
             />
           </View>
@@ -525,7 +461,8 @@ export default function ProfileSettings({ role }) {
       </TouchableOpacity>
 
       <View style={{ height: 30 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -535,7 +472,7 @@ function InfoRow({ icon, label, value }) {
       <View style={styles.iconBox}>
         <Ionicons
           name={icon}
-          size={18}
+          size={15}
           color="#0F2D52"
         />
       </View>
@@ -566,17 +503,32 @@ const styles = StyleSheet.create({
 
   header: {
     backgroundColor: "#0F2D52",
+    flexDirection: "row",
     alignItems: "center",
-    paddingTop: 60,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+    height: 160,
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+
+  headerInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
   },
 
   avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 45,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: "#E67821",
     justifyContent: "center",
     alignItems: "center",
@@ -584,7 +536,7 @@ const styles = StyleSheet.create({
 
   avatarText: {
     color: "#fff",
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: "bold",
   },
 
@@ -592,26 +544,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 22,
     fontWeight: "bold",
-    marginTop: 12,
-  },
-
-  designation: {
-    color: "#D7DFEA",
-    fontSize: 15,
-    marginTop: 4,
   },
 
   roleBadge: {
     backgroundColor: "#E67821",
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
     borderRadius: 20,
-    marginTop: 10,
   },
 
   roleBadgeText: {
     color: "#fff",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
   },
 
@@ -619,10 +563,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 20,
-    marginTop: 8,
   },
 
   statusDot: {
@@ -640,49 +583,51 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 11,
-    borderRadius: 18,
-    padding: 16,
-    elevation: 3,
+    marginHorizontal: 14,
+    marginTop: 9,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
+    elevation: 2,
   },
 
   cardTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "bold",
     color: "#0F2D52",
-    marginBottom: 15,
+    marginBottom: 9,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
 
   infoRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 7,
     flexWrap: "wrap",
   },
 
   iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 7,
     backgroundColor: "#EEF3F8",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 8,
   },
 
   infoLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: "#666",
     width: 110,
     fontWeight: "500",
   },
 
   infoValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#222",
     flex: 1,
@@ -692,24 +637,34 @@ const styles = StyleSheet.create({
   settingsRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 13,
+    paddingVertical: 8,
   },
 
   settingsIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     backgroundColor: "#EEF3F8",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
 
   settingsLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: "#374151",
     fontWeight: "500",
+  },
+
+  privacyCard: {
+    backgroundColor: "#fff",
+    marginHorizontal: 14,
+    marginTop: 9,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    elevation: 2,
   },
 
   rowBorder: {
@@ -723,16 +678,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     backgroundColor: "#C0392B",
-    marginHorizontal: 16,
-    marginTop: 14,
-    paddingVertical: 14,
-    borderRadius: 14,
-    elevation: 3,
+    marginHorizontal: 14,
+    marginTop: 12,
+    paddingVertical: 11,
+    borderRadius: 12,
+    elevation: 2,
   },
 
   logoutText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
   },
 });

@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AppDrawer from "../../components/AppDrawer";
 import dashboardService from "../../services/dashboard.service";
 
 function formatCurrency(value) {
@@ -142,47 +143,42 @@ export default function Home() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D86A16"]} />
-      }
-    >
-      {/* HEADER */}
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
-        <View style={styles.blobRight} />
-        <View style={styles.blobLeft} />
+        <View style={styles.circleLarge} />
+        <View style={styles.circleSmall} />
 
         <View style={styles.profileRow}>
-          <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={28} color="#fff" />
-            <View style={styles.avatarBadge}>
-              <Ionicons name="sparkles" size={8} color="#fff" />
-            </View>
+          <View style={styles.menuBox}>
+            <AppDrawer role="Store Staff" iconColor="#fff" />
           </View>
 
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.name}>{userName}</Text>
+            <Text style={styles.name} numberOfLines={1}>{userName}</Text>
 
             <View style={styles.badgeRow}>
               <View style={styles.staffBadge}>
                 <Text style={styles.staffText}>STORE STAFF</Text>
               </View>
-              {employeeNumber && (
+              {!!employeeNumber && (
                 <View style={[styles.staffBadge, { backgroundColor: '#4A6FA5' }]}>
                   <Text style={styles.staffText}>ID: {employeeNumber}</Text>
                 </View>
               )}
             </View>
           </View>
-
-          <TouchableOpacity style={styles.notification}>
-            <Ionicons name="notifications-outline" size={20} color="#fff" />
-          </TouchableOpacity>
         </View>
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#D86A16"]} />
+        }
+      >
 
       {/* DASHBOARD CARDS */}
       <View style={styles.metricsSection}>
@@ -234,7 +230,8 @@ export default function Home() {
       </View>
 
       <View style={{ height: 30 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -287,71 +284,58 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: "#0F2D52",
-    paddingTop: 55,
+    height: 160,
+    paddingTop: 50,
     paddingHorizontal: 18,
-    paddingBottom: 20,
+    justifyContent: "center",
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     overflow: "hidden",
-  },
-  blobRight: {
-    position: "absolute",
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "rgba(100,60,20,0.45)",
-    top: -20,
-    right: -25,
-  },
-  blobLeft: {
-    position: "absolute",
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(80,40,10,0.3)",
-    top: 55,
-    right: 35,
   },
   profileRow: {
     flexDirection: "row",
     alignItems: "center",
   },
-  avatar: {
-    width: 50,
-    height: 50,
+  circleLarge: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    top: 35,
+    right: -80,
+  },
+  circleSmall: {
+    position: "absolute",
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    top: 90,
+    right: -30,
+  },
+  menuBox: {
+    width: 46,
+    height: 46,
     borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 10,
-    position: "relative",
-  },
-  avatarBadge: {
-    position: "absolute",
-    bottom: -3,
-    right: -3,
-    backgroundColor: "#D86A16",
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#0F2D52",
+    marginRight: 14,
   },
   greeting: {
     color: "#D5DCE5",
-    fontSize: 12,
+    fontSize: 13,
   },
   name: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "bold",
-    marginTop: 1,
+    marginTop: 2,
   },
   badgeRow: {
     flexDirection: "row",
-    marginTop: 4,
+    marginTop: 8,
     gap: 6,
   },
   staffBadge: {
@@ -364,14 +348,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 10,
-  },
-  notification: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   metricsSection: {
     marginHorizontal: 14,

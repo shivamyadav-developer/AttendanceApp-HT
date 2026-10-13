@@ -293,8 +293,8 @@ const HistoryList = memo(function HistoryList({
 
       {sortedHistory.length > visibleCount && (
         <TouchableOpacity style={styles.loadMoreBtn} onPress={onLoadMore}>
-          <MaterialIcons name="expand-more" size={40} color="#D96A17" />
           <Text style={styles.loadMoreText}>Show More</Text>
+          <MaterialIcons name="expand-more" size={20} color="#0F2D52" />
         </TouchableOpacity>
       )}
     </>
@@ -501,13 +501,8 @@ export default function Attend() {
 
   // ── render ───────────────────────────────────────────────────────────────
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
         <Text style={styles.headerTag}>ATTENDANCE HUB</Text>
         <Text style={styles.headerTitle}>My Dashboard</Text>
@@ -516,6 +511,13 @@ export default function Attend() {
         </Text>
       </View>
 
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
       <StatsRow
         statusColor={statusColor}
         statusLabel={statusLabel}
@@ -549,64 +551,69 @@ export default function Attend() {
       />
 
       <View style={{ height: 30 }} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 // ─── styles (unchanged) ──────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F7FA" },
+  container: { flex: 1, backgroundColor: "#F3EEE8" },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F7FA",
+    backgroundColor: "#F3EEE8",
   },
   header: {
-    backgroundColor: "#0B2D52",
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    backgroundColor: "#0F2D52",
+    height: 160,
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    justifyContent: "center",
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
-  headerTag: { color: "#D96A17", fontWeight: "700", letterSpacing: 1, fontSize: 12 },
-  headerTitle: { color: "#fff", fontSize: 28, fontWeight: "bold", marginTop: 8 },
-  headerSubtitle: { color: "#D1D5DB", fontSize: 14, marginTop: 4 },
+  headerTag: { color: "#F5A623", fontWeight: "800", letterSpacing: 1.2, fontSize: 10 },
+  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold", marginTop: 3 },
+  headerSubtitle: { color: "#D5DCE5", fontSize: 12, marginTop: 3 },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginTop: -10,
+    paddingHorizontal: 13,
+    marginTop: 10,
   },
   statCard: {
     backgroundColor: "#fff",
     flex: 1,
-    marginHorizontal: 5,
-    padding: 10,
-    borderRadius: 12,
+    marginHorizontal: 3,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 14,
     alignItems: "center",
-    elevation: 3,
+    elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  statLabel: { fontSize: 12, color: "#6B7280", marginTop: 8 },
-  statValue: { fontSize: 13, fontWeight: "bold", marginTop: 4, textAlign: "center" },
+  statLabel: { fontSize: 11, color: "#777", marginTop: 6 },
+  statValue: { fontSize: 13, fontWeight: "bold", color: "#0F2D52", marginTop: 2, textAlign: "center" },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "bold",
-    color: "#111827",
-    marginHorizontal: 20,
+    color: "#0F2D52",
+    marginHorizontal: 16,
     marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   sessionCard: {
     backgroundColor: "#fff",
-    marginHorizontal: 20,
-    marginBottom: 15,
-    borderRadius: 12,
-    padding: 10,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 14,
+    padding: 14,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -619,7 +626,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
-  sessionDate: { fontSize: 16, fontWeight: "bold", color: "#111827" },
+  sessionDate: { fontSize: 15, fontWeight: "bold", color: "#0F2D52" },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -629,7 +636,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
-  statusPillText: { fontSize: 13, fontWeight: "600" },
+  statusPillText: { fontSize: 12, fontWeight: "700" },
   durationBlock: {
     backgroundColor: "#FFF4EC",
     borderRadius: 10,
@@ -652,9 +659,9 @@ const styles = StyleSheet.create({
   sessionValue: { fontSize: 13, fontWeight: "600", color: "#111827" },
   emptyCard: {
     backgroundColor: "#fff",
-    marginHorizontal: 20,
-    marginBottom: 15,
-    borderRadius: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 14,
     padding: 28,
     alignItems: "center",
     elevation: 2,
@@ -663,10 +670,10 @@ const styles = StyleSheet.create({
   emptySubText: { fontSize: 13, color: "#9CA3AF", marginTop: 6, textAlign: "center" },
   autoCard: {
     backgroundColor: "#FFF4EC",
-    marginHorizontal: 20,
-    marginBottom: 15,
+    marginHorizontal: 16,
+    marginBottom: 8,
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -674,9 +681,9 @@ const styles = StyleSheet.create({
   autoText: { flex: 1, fontSize: 12, color: "#D96A17", lineHeight: 18 },
   historyCard: {
     backgroundColor: "#fff",
-    marginHorizontal: 20,
-    marginBottom: 8,
-    borderRadius: 10,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    borderRadius: 14,
     padding: 14,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -688,12 +695,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   historyLeft: { flex: 1, gap: 4 },
-  historyDate: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  historyDate: { fontSize: 14, fontWeight: "700", color: "#0F2D52" },
   historyMeta: { fontSize: 12, color: "#9CA3AF" },
   historyRight: { alignItems: "flex-end", gap: 6 },
   historyBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  historyBadgeText: { fontSize: 12, fontWeight: "600" },
+  historyBadgeText: { fontSize: 11, fontWeight: "700" },
   historyDuration: { fontSize: 12, color: "#6B7280", fontWeight: "500" },
-  loadMoreBtn: { alignItems: "center", marginTop: 10, marginBottom: 20 },
-  loadMoreText: { color: "#D96A17", fontWeight: "600" },
+  loadMoreBtn: { flexDirection: "row", alignItems: "center", alignSelf: "center", gap: 2, marginTop: 8, marginBottom: 20, paddingLeft: 20, paddingRight: 14, paddingVertical: 9, backgroundColor: "#E1E7F0", borderRadius: 20 },
+  loadMoreText: { color: "#0F2D52", fontSize: 14, fontWeight: "700" },
 });

@@ -15,6 +15,20 @@ export default function FitterLayout() {
       }}
     >
 
+    {/* Fitter Dashboard */}
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons
+              name="dashboard"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
 
       {/* Existing Attendance */}
       <Tabs.Screen
@@ -30,20 +44,7 @@ export default function FitterLayout() {
           ),
         }}
       />
-      {/* Fitter Dashboard */}
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="dashboard"
-              color={color}
-              size={size}
-            />
-          ),
-        }}
-      />
+  
 
       {/* Pending Fitting Jobs */}
       <Tabs.Screen

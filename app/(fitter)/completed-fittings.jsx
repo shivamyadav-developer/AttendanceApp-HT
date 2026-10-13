@@ -153,7 +153,7 @@ export default function CompletedFittings() {
       <View style={styles.center}>
         <ActivityIndicator
           size="large"
-          color="#0F7A5C"
+          color="#D86A16"
         />
 
         <Text style={styles.loadingText}>
@@ -261,7 +261,7 @@ export default function CompletedFittings() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#0F7A5C"]}
+            colors={["#D86A16"]}
           />
         }
         ListEmptyComponent={
@@ -270,7 +270,7 @@ export default function CompletedFittings() {
               <MaterialIcons
                 name="check-circle"
                 size={44}
-                color="#0F7A5C"
+                color="#D86A16"
               />
             </View>
 
@@ -356,7 +356,7 @@ function CompletedFittingCard({
           <MaterialIcons
             name="confirmation-number"
             size={19}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <Text
@@ -459,7 +459,7 @@ function CompletedFittingCard({
           <MaterialIcons
             name="event"
             size={18}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <View style={styles.completedTextWrap}>
@@ -480,7 +480,7 @@ function CompletedFittingCard({
           <MaterialIcons
             name="schedule"
             size={18}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <View style={styles.completedTextWrap}>
@@ -523,7 +523,7 @@ function CompletedFittingCard({
         <MaterialIcons
           name="arrow-forward"
           size={20}
-          color="#0F7A5C"
+          color="#D86A16"
         />
       </View>
     </TouchableOpacity>
@@ -572,14 +572,14 @@ function createStyles(width, insets, isTablet) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
     },
 
     center: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
       paddingTop: insets.top,
       paddingBottom: insets.bottom,
     },
@@ -591,32 +591,33 @@ function createStyles(width, insets, isTablet) {
     },
 
     header: {
-      backgroundColor: "#FFFFFF",
-      paddingHorizontal: horizontalPadding,
-      paddingTop: insets.top + 14,
-      paddingBottom: 18,
-      borderBottomWidth: 1,
-      borderBottomColor: "#E5ECE8",
+      backgroundColor: "#0F2D52",
+      height: 160,
+      paddingTop: 50,
+      paddingHorizontal: 18,
+      justifyContent: "center",
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
     },
 
     smallTitle: {
-      fontSize: moderateScale(11),
-      fontWeight: "700",
-      letterSpacing: 1.4,
-      color: "#0F7A5C",
+      fontSize: moderateScale(10),
+      fontWeight: "800",
+      letterSpacing: 1.2,
+      color: "#F5A623",
     },
 
     title: {
-      marginTop: 4,
-      fontSize: moderateScale(27),
-      fontWeight: "800",
-      color: "#17221E",
+      marginTop: 3,
+      fontSize: moderateScale(22),
+      fontWeight: "bold",
+      color: "#FFFFFF",
     },
 
     subtitle: {
-      marginTop: 5,
-      fontSize: moderateScale(13),
-      color: "#74817C",
+      marginTop: 3,
+      fontSize: moderateScale(12),
+      color: "#D5DCE5",
     },
 
     searchOuter: {
@@ -692,7 +693,7 @@ function createStyles(width, insets, isTablet) {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -744,7 +745,7 @@ function createStyles(width, insets, isTablet) {
       marginLeft: 7,
       fontSize: moderateScale(13),
       fontWeight: "800",
-      color: "#0F7A5C",
+      color: "#D86A16",
       flexShrink: 1,
     },
 
@@ -768,7 +769,7 @@ function createStyles(width, insets, isTablet) {
       marginTop: 13,
       fontSize: moderateScale(19),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
     },
 
     detailRow: {
@@ -799,7 +800,7 @@ function createStyles(width, insets, isTablet) {
       marginTop: 15,
       padding: 12,
       borderRadius: 12,
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       flexDirection: "row",
       justifyContent: "space-between",
       gap: 10,
@@ -860,7 +861,7 @@ function createStyles(width, insets, isTablet) {
       marginRight: 5,
       fontSize: moderateScale(13),
       fontWeight: "800",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
   });
 }

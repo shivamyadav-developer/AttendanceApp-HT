@@ -11,6 +11,7 @@ import {
     View,
     useWindowDimensions,
 } from "react-native";
+import AppDrawer from "../../components/AppDrawer";
 import fitterService from "../../services/fitter.service";
 
 // =============================================================
@@ -145,7 +146,7 @@ export default function FitterDashboard() {
       <View style={styles.center}>
         <ActivityIndicator
           size="large"
-          color="#0F7A5C"
+          color="#D86A16"
         />
 
         <Text style={styles.loadingText}>
@@ -159,7 +160,11 @@ export default function FitterDashboard() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.menuBox}>
+          <AppDrawer role="Fitter" iconColor="#fff" />
+        </View>
+
+        <View style={{ flex: 1, marginLeft: 14 }}>
           <Text style={styles.smallTitle}>
             FITTER OPERATIONS
           </Text>
@@ -176,7 +181,7 @@ export default function FitterDashboard() {
           <MaterialIcons
             name="refresh"
             size={moderateScale(24, width)}
-            color="#0F7A5C"
+            color="#fff"
           />
         </TouchableOpacity>
       </View>
@@ -190,7 +195,7 @@ export default function FitterDashboard() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#0F7A5C"]}
+            colors={["#D86A16"]}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -362,7 +367,7 @@ function StatCard({
         <MaterialIcons
           name={icon}
           size={moderateScale(24, width)}
-          color="#0F7A5C"
+          color="#D86A16"
         />
       </View>
 
@@ -430,7 +435,7 @@ function TaskCard({
           <MaterialIcons
             name="confirmation-number"
             size={moderateScale(18, width)}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <Text style={styles.ticketNumber}>
@@ -499,7 +504,7 @@ function TaskCard({
         <MaterialIcons
           name="chevron-right"
           size={moderateScale(22, width)}
-          color="#0F7A5C"
+          color="#D86A16"
         />
       </View>
     </TouchableOpacity>
@@ -516,14 +521,14 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
     },
 
     center: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
     },
 
     loadingText: {
@@ -533,36 +538,45 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
     },
 
     header: {
-      backgroundColor: "#FFFFFF",
-      paddingHorizontal: ms(20),
-      paddingTop: ms(55),
-      paddingBottom: ms(18),
+      backgroundColor: "#0F2D52",
+      height: 160,
+      paddingTop: 50,
+      paddingHorizontal: 18,
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      borderBottomWidth: 1,
-      borderBottomColor: "#E6ECE9",
+    },
+
+    menuBox: {
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: "rgba(255,255,255,0.15)",
+      alignItems: "center",
+      justifyContent: "center",
     },
 
     smallTitle: {
-      fontSize: ms(11),
-      fontWeight: "700",
-      letterSpacing: 1.4,
-      color: "#0F7A5C",
+      fontSize: ms(10),
+      fontWeight: "800",
+      letterSpacing: 1.2,
+      color: "#F5A623",
     },
 
     title: {
-      marginTop: ms(4),
-      fontSize: ms(27, 0.4),
-      fontWeight: "800",
-      color: "#17221E",
+      marginTop: ms(3),
+      fontSize: ms(20, 0.4),
+      fontWeight: "bold",
+      color: "#FFFFFF",
     },
 
     refreshButton: {
-      width: ms(44),
-      height: ms(44),
-      borderRadius: ms(22),
-      backgroundColor: "#EAF5F0",
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: "rgba(255,255,255,0.15)",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -610,14 +624,14 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
       padding: ms(16),
       marginBottom: ms(12),
       borderWidth: 1,
-      borderColor: "#E4EBE7",
+      borderColor: "#EEE7DE",
     },
 
     statIcon: {
       width: ms(42),
       height: ms(42),
       borderRadius: ms(12),
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       alignItems: "center",
       justifyContent: "center",
       marginBottom: ms(12),
@@ -626,7 +640,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
     statValue: {
       fontSize: ms(26, 0.4),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
     },
 
     statTitle: {
@@ -647,15 +661,15 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
     sectionTitle: {
       fontSize: ms(19),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
     },
 
     sectionCount: {
       minWidth: ms(28),
       height: ms(28),
       borderRadius: ms(14),
-      backgroundColor: "#EAF5F0",
-      color: "#0F7A5C",
+      backgroundColor: "#FFF4EC",
+      color: "#D86A16",
       textAlign: "center",
       paddingTop: ms(5),
       fontWeight: "800",
@@ -664,7 +678,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
     viewAll: {
       fontSize: ms(14),
       fontWeight: "700",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
 
     emptyCard: {
@@ -674,7 +688,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
       alignItems: "center",
       marginBottom: ms(22),
       borderWidth: 1,
-      borderColor: "#E4EBE7",
+      borderColor: "#EEE7DE",
     },
 
     emptyTitle: {
@@ -698,7 +712,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
       padding: ms(16),
       marginBottom: ms(12),
       borderWidth: 1,
-      borderColor: "#E4EBE7",
+      borderColor: "#EEE7DE",
     },
 
     taskTop: {
@@ -717,7 +731,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
       marginLeft: ms(7),
       fontSize: ms(13),
       fontWeight: "700",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
 
     statusBadge: {
@@ -737,7 +751,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
       marginTop: ms(12),
       fontSize: ms(18),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
     },
 
     detailRow: {
@@ -766,7 +780,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
     openDetailsText: {
       fontSize: ms(13),
       fontWeight: "700",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
   });
 }

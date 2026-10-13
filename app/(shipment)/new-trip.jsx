@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 
+import AppDrawer from "../../components/AppDrawer";
+
 export default function NewTrip() {
   const router = useRouter();
 
@@ -79,19 +81,16 @@ export default function NewTrip() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Header */}
-
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
+        <AppDrawer role="Shipment" iconColor="#fff" />
+
         <View style={styles.iconBox}>
           <MaterialIcons
             name="local-shipping"
             size={25}
-            color="#D96A17"
+            color="#fff"
           />
         </View>
 
@@ -103,6 +102,12 @@ export default function NewTrip() {
           </Text>
         </View>
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
 
       {/* Mobile Number */}
 
@@ -297,46 +302,52 @@ export default function NewTrip() {
           color="#fff"
         />
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F7F7",
+    backgroundColor: "#F3EEE8",
   },
 
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
     paddingBottom: 40,
-    marginTop: 50,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 30,
+    backgroundColor: "#0F2D52",
+    height: 160,
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
 
   iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
-    backgroundColor: "#FFF0E6",
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
 
   title: {
-    fontSize: 27,
-    fontWeight: "800",
-    color: "#3A2415",
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
   },
 
   subtitle: {
-    color: "#777",
+    color: "#D5DCE5",
     marginTop: 3,
     fontSize: 13,
   },
@@ -344,7 +355,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#3A2415",
+    color: "#0F2D52",
     marginBottom: 6,
     marginTop: 10,
   },

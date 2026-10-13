@@ -127,6 +127,25 @@ export default function Targets() {
 
   return (
     <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
+      <View style={styles.header}>
+        <View style={styles.circleLarge} />
+        <View style={styles.circleSmall} />
+
+        <View style={styles.headerRow}>
+          <View style={styles.iconBtn}>
+            <Ionicons name="flag-outline" size={22} color="#fff" />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>My Targets</Text>
+            <Text style={styles.headerSub}>
+              Track your daily sales progress
+            </Text>
+          </View>
+        </View>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -134,12 +153,6 @@ export default function Targets() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>My Targets</Text>
-          </View>
-        </View>
 
         {/* Daily Targets Section */}
         <View style={styles.dailySection}>
@@ -166,16 +179,29 @@ export default function Targets() {
               return (
                 <View key={target._id} style={styles.dailyCard}>
                   <View style={styles.dailyCardHeader}>
-                    <View>
+                    <View style={styles.dailyDateRow}>
+                      <Ionicons name="calendar-outline" size={16} color="#0F2D52" />
                       <Text style={styles.dailyDate}>
                         {formatDate(target.targetDate)}
-                      </Text>
-                      <Text style={styles.dailyAmount}>
-                        {formatCurrency(target.targetAchieved || 0)} / {formatCurrency(target.salesTargetAmount || 0)}
                       </Text>
                     </View>
                     <View style={[styles.dailyBadge, { backgroundColor: statusColor }]}>
                       <Text style={styles.dailyBadgeText}>{progress}%</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.amountRow}>
+                    <View style={styles.amountBox}>
+                      <Text style={styles.amountLabel}>ACHIEVED</Text>
+                      <Text style={styles.amountValue}>
+                        {formatCurrency(target.targetAchieved || 0)}
+                      </Text>
+                    </View>
+                    <View style={styles.amountBox}>
+                      <Text style={styles.amountLabel}>TARGET</Text>
+                      <Text style={styles.amountValue}>
+                        {formatCurrency(target.salesTargetAmount || 0)}
+                      </Text>
                     </View>
                   </View>
 
@@ -230,32 +256,54 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: "#0F2D52",
-    paddingTop: 55,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-    flexDirection: "row",
+    height: 160,
+    paddingTop: 50,
+    paddingHorizontal: 18,
     justifyContent: "center",
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: "hidden",
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
+  },
+  circleLarge: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    top: 35,
+    right: -80,
+  },
+  circleSmall: {
+    position: "absolute",
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    top: 90,
+    right: -30,
   },
   iconBtn: {
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.15)",
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 14,
   },
   headerTitle: {
     color: "#fff",
-    fontSize: 25,
-    fontWeight: "800",
-    textAlign: "center",
+    fontSize: 22,
+    fontWeight: "bold",
   },
   headerSub: {
-    color: "#D7DFEA",
-    fontSize: 11,
+    color: "#D5DCE5",
+    fontSize: 13,
     marginTop: 2,
-    textAlign: "center",
   },
   dailySection: {
     marginTop: 20,
@@ -286,18 +334,42 @@ const styles = StyleSheet.create({
   dailyCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  dailyDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   dailyDate: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#333",
-    marginBottom: 4,
+    color: "#0F2D52",
   },
-  dailyAmount: {
-    fontSize: 13,
-    color: "#666",
+  amountRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  amountBox: {
+    flex: 1,
+    backgroundColor: "#F7F4F0",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  amountLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#9CA3AF",
+    letterSpacing: 0.8,
+  },
+  amountValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#222",
+    marginTop: 3,
   },
   dailyBadge: {
     paddingHorizontal: 12,

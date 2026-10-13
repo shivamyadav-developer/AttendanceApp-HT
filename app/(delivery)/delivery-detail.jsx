@@ -693,7 +693,7 @@ export default function DeliveryDetail() {
                     <MaterialIcons
                         name="arrow-back"
                         size={moderateScale(23, width)}
-                        color="#0F172A"
+                        color="#fff"
                     />
                 </TouchableOpacity>
 
@@ -718,7 +718,7 @@ export default function DeliveryDetail() {
                     <MaterialIcons
                         name="refresh"
                         size={moderateScale(21, width)}
-                        color="#1565C0"
+                        color="#fff"
                     />
                 </TouchableOpacity>
             </View>
@@ -1574,47 +1574,48 @@ function createStyles(width, height, { isTablet }) {
         // =========================================================
 
         header: {
-            height: ms(65),
-            backgroundColor: "#FFFFFF",
-            borderBottomWidth: 1,
-            borderBottomColor: "#E2E8F0",
+            height: 160,
+            paddingTop: 50,
+            paddingHorizontal: 18,
+            backgroundColor: "#0F2D52",
+            borderBottomLeftRadius: 30,
+            borderBottomRightRadius: 30,
             flexDirection: "row",
             alignItems: "center",
-            paddingHorizontal: ms(14),
         },
 
         headerBack: {
-            width: ms(40),
-            height: ms(40),
-            borderRadius: ms(10),
-            backgroundColor: "#F8FAFC",
+            width: 46,
+            height: 46,
+            borderRadius: 14,
+            backgroundColor: "rgba(255,255,255,0.15)",
             alignItems: "center",
             justifyContent: "center",
         },
 
         headerCenter: {
             flex: 1,
-            marginLeft: ms(10),
+            marginLeft: 14,
         },
 
         headerTitle: {
-            fontSize: ms(17),
-            fontWeight: "900",
-            color: "#0F172A",
+            fontSize: ms(20, 0.4),
+            fontWeight: "bold",
+            color: "#FFFFFF",
         },
 
         headerTicket: {
-            fontSize: ms(10),
-            color: "#94A3B8",
+            fontSize: ms(12),
+            color: "#F5A623",
             marginTop: ms(2),
             fontWeight: "700",
         },
 
         headerRefresh: {
-            width: ms(40),
-            height: ms(40),
-            borderRadius: ms(10),
-            backgroundColor: "#EFF6FF",
+            width: 46,
+            height: 46,
+            borderRadius: 14,
+            backgroundColor: "rgba(255,255,255,0.15)",
             alignItems: "center",
             justifyContent: "center",
         },

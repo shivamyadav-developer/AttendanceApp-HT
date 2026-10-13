@@ -12,6 +12,7 @@ import {
     useWindowDimensions,
 } from "react-native";
 
+import AppDrawer from "../../components/AppDrawer";
 import deliveryService from "../../services/delivery.service";
 
 // =============================================================
@@ -288,7 +289,7 @@ export default function Dashboard() {
             <View style={styles.centerContainer}>
                 <ActivityIndicator
                     size="large"
-                    color="#1565C0"
+                    color="#D86A16"
                 />
 
                 <Text style={styles.loadingText}>
@@ -345,6 +346,54 @@ export default function Dashboard() {
     // =========================================================
     return (
         <View style={styles.container}>
+            {/* Header stays fixed while the page scrolls */}
+            <View style={styles.header}>
+                <View style={styles.menuBox}>
+                    <AppDrawer role="Delivery Agent" iconColor="#fff" />
+                </View>
+
+                <View style={styles.headerText}>
+                    <Text style={styles.smallHeading}>
+                        DELIVERY PERFORMANCE
+                    </Text>
+
+                    <Text style={styles.greeting}>
+                        Hello, {agentName}
+                    </Text>
+
+                    <View style={styles.subtitleRow}>
+                        <MaterialIcons
+                            name="location-on"
+                            size={moderateScale(16, width)}
+                            color="#D5DCE5"
+                        />
+
+                        <Text style={styles.subtitle}>
+                            Your delivery tasks
+                        </Text>
+                    </View>
+                </View>
+
+                <View style={styles.dateCard}>
+                    <MaterialIcons
+                        name="calendar-today"
+                        size={moderateScale(16, width)}
+                        color="#fff"
+                    />
+
+                    <Text style={styles.dateText}>
+                        {new Date().toLocaleDateString(
+                            "en-IN",
+                            {
+                                weekday: "short",
+                                day: "numeric",
+                                month: "short",
+                            }
+                        )}
+                    </Text>
+                </View>
+            </View>
+
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={
@@ -356,56 +405,11 @@ export default function Dashboard() {
                         onRefresh={() =>
                             loadDashboard(true)
                         }
-                        colors={["#1565C0"]}
-                        tintColor="#1565C0"
+                        colors={["#D86A16"]}
+                        tintColor="#D86A16"
                     />
                 }
             >
-                {/* ================================================= */}
-                {/* HEADER */}
-                {/* ================================================= */}
-                <View style={styles.header}>
-                    <View style={styles.headerText}>
-                        <Text style={styles.smallHeading}>
-                            DELIVERY PERFORMANCE
-                        </Text>
-
-                        <Text style={styles.greeting}>
-                            Hello, {agentName}
-                        </Text>
-
-                        <View style={styles.subtitleRow}>
-                            <MaterialIcons
-                                name="location-on"
-                                size={moderateScale(16, width)}
-                                color="#64748B"
-                            />
-
-                            <Text style={styles.subtitle}>
-                                Your delivery tasks
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.dateCard}>
-                        <MaterialIcons
-                            name="calendar-today"
-                            size={moderateScale(16, width)}
-                            color="#64748B"
-                        />
-
-                        <Text style={styles.dateText}>
-                            {new Date().toLocaleDateString(
-                                "en-IN",
-                                {
-                                    weekday: "short",
-                                    day: "numeric",
-                                    month: "short",
-                                }
-                            )}
-                        </Text>
-                    </View>
-                </View>
 
                 {/* ================================================= */}
                 {/* STAT CARDS */}
@@ -481,7 +485,7 @@ export default function Dashboard() {
                             <MaterialIcons
                                 name="access-time"
                                 size={moderateScale(25, width)}
-                                color="#F97316"
+                                color="#D86A16"
                             />
                         </View>
                     </View>
@@ -776,7 +780,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
 
         container: {
             flex: 1,
-            backgroundColor: "#F8FAFC",
+            backgroundColor: "#F3EEE8",
         },
 
         scrollContentTablet: {
@@ -787,7 +791,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
 
         centerContainer: {
             flex: 1,
-            backgroundColor: "#F8FAFC",
+            backgroundColor: "#F3EEE8",
             alignItems: "center",
             justifyContent: "center",
             padding: ms(24),
@@ -829,7 +833,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#1565C0",
+            backgroundColor: "#D86A16",
             paddingHorizontal: ms(22),
             paddingVertical: ms(12),
             borderRadius: ms(10),
@@ -847,13 +851,25 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
         // ---------------------------------------------------------
 
         header: {
-            paddingHorizontal: ms(18),
-            paddingTop: ms(22),
-            paddingBottom: ms(16),
+            backgroundColor: "#0F2D52",
+            height: 160,
+            paddingTop: 50,
+            paddingHorizontal: 18,
+            borderBottomLeftRadius: 30,
+            borderBottomRightRadius: 30,
             flexDirection: "row",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "space-between",
             gap: ms(12),
+        },
+
+        menuBox: {
+            width: 46,
+            height: 46,
+            borderRadius: 14,
+            backgroundColor: "rgba(255,255,255,0.15)",
+            alignItems: "center",
+            justifyContent: "center",
         },
 
         headerText: {
@@ -863,45 +879,43 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
         smallHeading: {
             fontSize: ms(10),
             fontWeight: "800",
-            color: "#94A3B8",
-            letterSpacing: 1.5,
-            marginBottom: ms(5),
+            color: "#F5A623",
+            letterSpacing: 1.2,
+            marginBottom: ms(3),
         },
 
         greeting: {
-            fontSize: ms(26, 0.4),
-            fontWeight: "900",
-            color: "#0F172A",
+            fontSize: ms(20, 0.4),
+            fontWeight: "bold",
+            color: "#FFFFFF",
         },
 
         subtitleRow: {
             flexDirection: "row",
             alignItems: "center",
-            marginTop: ms(6),
+            marginTop: ms(4),
             gap: ms(4),
         },
 
         subtitle: {
-            fontSize: ms(13),
-            color: "#64748B",
+            fontSize: ms(12),
+            color: "#D5DCE5",
         },
 
         dateCard: {
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: "#FFFFFF",
-            borderWidth: 1,
-            borderColor: "#E2E8F0",
+            backgroundColor: "rgba(255,255,255,0.15)",
             borderRadius: ms(10),
             paddingHorizontal: ms(10),
-            paddingVertical: ms(9),
+            paddingVertical: ms(8),
             gap: ms(6),
         },
 
         dateText: {
             fontSize: ms(11),
             fontWeight: "700",
-            color: "#475569",
+            color: "#FFFFFF",
         },
 
         // ---------------------------------------------------------
@@ -912,6 +926,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
             flexDirection: "row",
             flexWrap: "wrap",
             paddingHorizontal: ms(14),
+            marginTop: ms(14),
             gap: ms(10),
         },
 
@@ -970,7 +985,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
         tatCard: {
             marginHorizontal: ms(14),
             marginTop: ms(14),
-            backgroundColor: "#0F172A",
+            backgroundColor: "#0F2D52",
             borderRadius: ms(14),
             padding: ms(18),
         },
@@ -999,7 +1014,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
             width: ms(44),
             height: ms(44),
             borderRadius: ms(12),
-            backgroundColor: "#1E293B",
+            backgroundColor: "rgba(255,255,255,0.12)",
             alignItems: "center",
             justifyContent: "center",
         },
@@ -1012,7 +1027,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
 
         progressBackground: {
             height: ms(7),
-            backgroundColor: "#334155",
+            backgroundColor: "rgba(255,255,255,0.18)",
             borderRadius: ms(10),
             overflow: "hidden",
             marginTop: ms(16),
@@ -1020,7 +1035,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
 
         progressFill: {
             height: "100%",
-            backgroundColor: "#F97316",
+            backgroundColor: "#D86A16",
             borderRadius: ms(10),
         },
 
@@ -1067,7 +1082,7 @@ function createStyles(width, height, { isTablet, statCardWidthPct }) {
         viewAll: {
             fontSize: ms(10),
             fontWeight: "800",
-            color: "#F97316",
+            color: "#D86A16",
         },
 
         emptyCard: {

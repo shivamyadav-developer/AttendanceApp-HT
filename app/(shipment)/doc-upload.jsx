@@ -105,16 +105,11 @@ export default function DocUpload() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
         <View style={styles.iconBox}>
-          <MaterialIcons name="upload-file" size={26} color="#D96A17" />
+          <MaterialIcons name="upload-file" size={26} color="#fff" />
         </View>
 
         <View>
@@ -124,6 +119,12 @@ export default function DocUpload() {
           </Text>
         </View>
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* Upload Card */}
 
@@ -253,46 +254,53 @@ export default function DocUpload() {
           <MaterialIcons name="arrow-forward" size={20} color="#fff" />
         )}
       </TouchableOpacity>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F7F7",
+    backgroundColor: "#F3EEE8",
   },
 
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
     paddingBottom: 40,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
+    backgroundColor: "#0F2D52",
+    height: 160,
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
 
   iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
-    backgroundColor: "#FFF0E6",
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
 
   title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#3A2415",
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
     letterSpacing: 0.2,
   },
 
   subtitle: {
-    color: "#8A8A8A",
+    color: "#D5DCE5",
     marginTop: 3,
     fontSize: 13,
   },
@@ -379,7 +387,7 @@ const styles = StyleSheet.create({
   dropzoneTitle: {
     fontSize: 15.5,
     fontWeight: "700",
-    color: "#3A2415",
+    color: "#0F2D52",
   },
 
   dropzoneHint: {
@@ -397,7 +405,7 @@ const styles = StyleSheet.create({
   sectionLabelDark: {
     fontSize: 15,
     fontWeight: "800",
-    color: "#3A2415",
+    color: "#0F2D52",
   },
 
   countBadge: {
@@ -454,7 +462,7 @@ const styles = StyleSheet.create({
   docName: {
     fontSize: 14.5,
     fontWeight: "700",
-    color: "#3A2415",
+    color: "#0F2D52",
   },
 
   docMeta: {

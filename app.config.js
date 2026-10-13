@@ -125,6 +125,15 @@ export default {
             ],
 
             [
+                "expo-audio",
+                {
+                    microphonePermission:
+                        "Allow HT-ontrack to use the microphone to record customer calls.",
+                    enableBackgroundRecording: true,
+                },
+            ],
+
+            [
                 "expo-splash-screen",
                 {
                     image: "./assets/images/logo.jpg",

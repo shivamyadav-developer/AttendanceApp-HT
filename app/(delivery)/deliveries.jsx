@@ -334,7 +334,7 @@ export default function Deliveries() {
             <View style={styles.centerContainer}>
                 <ActivityIndicator
                     size="large"
-                    color="#1565C0"
+                    color="#D86A16"
                 />
 
                 <Text style={styles.loadingText}>
@@ -415,7 +415,7 @@ export default function Deliveries() {
                     <MaterialIcons
                         name="refresh"
                         size={moderateScale(22, width)}
-                        color="#1565C0"
+                        color="#fff"
                     />
                 </TouchableOpacity>
             </View>
@@ -431,8 +431,8 @@ export default function Deliveries() {
                         onRefresh={() =>
                             loadDeliveries(true)
                         }
-                        colors={["#1565C0"]}
-                        tintColor="#1565C0"
+                        colors={["#D86A16"]}
+                        tintColor="#D86A16"
                     />
                 }
             >
@@ -874,7 +874,7 @@ export default function Deliveries() {
                                         <MaterialIcons
                                             name="chevron-right"
                                             size={moderateScale(20, width)}
-                                            color="#1565C0"
+                                            color="#D86A16"
                                         />
                                     </View>
                                 </View>
@@ -943,7 +943,7 @@ function createStyles(width, height, { isTablet }) {
 
         container: {
             flex: 1,
-            backgroundColor: "#F8FAFC",
+            backgroundColor: "#F3EEE8",
         },
 
         scrollContentTablet: {
@@ -954,7 +954,7 @@ function createStyles(width, height, { isTablet }) {
 
         centerContainer: {
             flex: 1,
-            backgroundColor: "#F8FAFC",
+            backgroundColor: "#F3EEE8",
             alignItems: "center",
             justifyContent: "center",
             padding: ms(24),
@@ -997,7 +997,7 @@ function createStyles(width, height, { isTablet }) {
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#1565C0",
+            backgroundColor: "#D86A16",
             paddingHorizontal: ms(22),
             paddingVertical: ms(12),
             borderRadius: ms(10),
@@ -1015,31 +1015,34 @@ function createStyles(width, height, { isTablet }) {
         // =========================================================
 
         header: {
-            paddingHorizontal: ms(18),
-            paddingTop: ms(20),
-            paddingBottom: ms(12),
+            backgroundColor: "#0F2D52",
+            height: 160,
+            paddingTop: 50,
+            paddingHorizontal: 18,
+            borderBottomLeftRadius: 30,
+            borderBottomRightRadius: 30,
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
         },
 
         headerTitle: {
-            fontSize: ms(25, 0.4),
-            fontWeight: "900",
-            color: "#0F172A",
+            fontSize: ms(22, 0.4),
+            fontWeight: "bold",
+            color: "#FFFFFF",
         },
 
         headerSubtitle: {
             fontSize: ms(12),
-            color: "#64748B",
-            marginTop: ms(4),
+            color: "#D5DCE5",
+            marginTop: ms(3),
         },
 
         refreshButton: {
-            width: ms(42),
-            height: ms(42),
-            borderRadius: ms(11),
-            backgroundColor: "#EFF6FF",
+            width: 46,
+            height: 46,
+            borderRadius: 14,
+            backgroundColor: "rgba(255,255,255,0.15)",
             alignItems: "center",
             justifyContent: "center",
         },
@@ -1050,7 +1053,8 @@ function createStyles(width, height, { isTablet }) {
 
         summaryContainer: {
             paddingHorizontal: ms(14),
-            paddingVertical: ms(8),
+            paddingTop: ms(14),
+            paddingBottom: ms(8),
             gap: ms(10),
         },
 
@@ -1130,8 +1134,8 @@ function createStyles(width, height, { isTablet }) {
         },
 
         filterButtonActive: {
-            backgroundColor: "#1565C0",
-            borderColor: "#1565C0",
+            backgroundColor: "#0F2D52",
+            borderColor: "#0F2D52",
         },
 
         filterText: {
@@ -1357,7 +1361,7 @@ function createStyles(width, height, { isTablet }) {
         openDetailText: {
             fontSize: ms(10),
             fontWeight: "800",
-            color: "#1565C0",
+            color: "#D86A16",
         },
     });
 }

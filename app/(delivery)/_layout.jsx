@@ -14,6 +14,21 @@ export default function DeliveryLayout() {
         },
       }}
     >
+          {/* Delivery Dashboard */}
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons
+              name="dashboard"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      /> 
+      
       <Tabs.Screen
         name="attendance"
         options={{
@@ -28,20 +43,7 @@ export default function DeliveryLayout() {
         }}
       />
 
-      {/* Delivery Dashboard */}
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="dashboard"
-              color={color}
-              size={size}
-            />
-          ),
-        }}
-      />
+  
 
       {/* My Delivery Tasks */}
       <Tabs.Screen

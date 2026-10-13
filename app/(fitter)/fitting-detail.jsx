@@ -526,7 +526,7 @@ export default function FittingDetail() {
       <View style={styles.center}>
         <ActivityIndicator
           size="large"
-          color="#0F7A5C"
+          color="#D86A16"
         />
 
         <Text style={styles.loadingText}>
@@ -640,8 +640,8 @@ export default function FittingDetail() {
         >
           <MaterialIcons
             name="arrow-back"
-            size={25}
-            color="#17221E"
+            size={24}
+            color="#fff"
           />
         </TouchableOpacity>
 
@@ -691,7 +691,7 @@ export default function FittingDetail() {
               color={
                 isCompleted
                   ? "#087A4A"
-                  : "#0F7A5C"
+                  : "#D86A16"
               }
             />
           </View>
@@ -792,7 +792,7 @@ export default function FittingDetail() {
             <MaterialIcons
               name="calendar-today"
               size={22}
-              color="#0F7A5C"
+              color="#D86A16"
             />
 
             <View style={styles.scheduleText}>
@@ -815,7 +815,7 @@ export default function FittingDetail() {
             <MaterialIcons
               name="schedule"
               size={23}
-              color="#0F7A5C"
+              color="#D86A16"
             />
 
             <View style={styles.scheduleText}>
@@ -869,7 +869,7 @@ export default function FittingDetail() {
             <MaterialIcons
               name="build"
               size={25}
-              color="#0F7A5C"
+              color="#D86A16"
             />
 
             <View style={styles.progressContent}>
@@ -954,7 +954,7 @@ export default function FittingDetail() {
                   <MaterialIcons
                     name="camera-alt"
                     size={21}
-                    color="#0F7A5C"
+                    color="#D86A16"
                   />
 
                   <Text
@@ -971,7 +971,7 @@ export default function FittingDetail() {
                   <MaterialIcons
                     name="photo-library"
                     size={21}
-                    color="#0F7A5C"
+                    color="#D86A16"
                   />
 
                   <Text
@@ -1008,14 +1008,14 @@ export default function FittingDetail() {
               >
                 {sendingOtp ? (
                   <ActivityIndicator
-                    color="#0F7A5C"
+                    color="#D86A16"
                   />
                 ) : (
                   <>
                     <MaterialIcons
                       name="sms"
                       size={21}
-                      color="#0F7A5C"
+                      color="#D86A16"
                     />
 
                     <Text
@@ -1314,7 +1314,7 @@ function SectionTitle({
       <MaterialIcons
         name={icon}
         size={20}
-        color="#0F7A5C"
+        color="#D86A16"
       />
 
       <Text style={styles.sectionTitleText}>
@@ -1442,12 +1442,12 @@ function createStyles(width, height, insets, isTablet) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
     },
 
     center: {
       flex: 1,
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
       alignItems: "center",
       justifyContent: "center",
       padding: 25,
@@ -1482,7 +1482,7 @@ function createStyles(width, height, insets, isTablet) {
       paddingHorizontal: 25,
       paddingVertical: 12,
       borderRadius: 10,
-      backgroundColor: "#0F7A5C",
+      backgroundColor: "#D86A16",
     },
 
     retryText: {
@@ -1497,45 +1497,45 @@ function createStyles(width, height, insets, isTablet) {
     },
 
     backText: {
-      color: "#0F7A5C",
+      color: "#D86A16",
       fontWeight: "700",
     },
 
     header: {
-      backgroundColor: "#FFFFFF",
-      paddingTop: insets.top + 10,
-      paddingBottom: 14,
-      paddingHorizontal: horizontalPadding,
+      backgroundColor: "#0F2D52",
+      height: 160,
+      paddingTop: 50,
+      paddingHorizontal: 18,
       flexDirection: "row",
       alignItems: "center",
-      borderBottomWidth: 1,
-      borderBottomColor: "#E4EBE7",
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
     },
 
     backButton: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor: "#F1F5F3",
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: "rgba(255,255,255,0.15)",
       alignItems: "center",
       justifyContent: "center",
     },
 
     headerContent: {
-      marginLeft: 12,
+      marginLeft: 14,
       flexShrink: 1,
     },
 
     headerTitle: {
       fontSize: moderateScale(20),
-      fontWeight: "800",
-      color: "#17221E",
+      fontWeight: "bold",
+      color: "#FFFFFF",
     },
 
     headerTicket: {
       marginTop: 2,
       fontSize: moderateScale(12),
-      color: "#0F7A5C",
+      color: "#F5A623",
       fontWeight: "700",
     },
 
@@ -1577,7 +1577,7 @@ function createStyles(width, height, insets, isTablet) {
       width: 52,
       height: 52,
       borderRadius: 26,
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1597,7 +1597,7 @@ function createStyles(width, height, insets, isTablet) {
       marginLeft: 8,
       fontSize: moderateScale(18),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
     },
 
     card: {
@@ -1612,7 +1612,7 @@ function createStyles(width, height, insets, isTablet) {
     customerName: {
       fontSize: moderateScale(20),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
       marginBottom: 7,
     },
 
@@ -1642,7 +1642,7 @@ function createStyles(width, height, insets, isTablet) {
     },
 
     scheduleCard: {
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       borderRadius: 16,
       padding: 15,
       flexDirection: "row",
@@ -1683,7 +1683,7 @@ function createStyles(width, height, insets, isTablet) {
     },
 
     primaryButton: {
-      backgroundColor: "#0F7A5C",
+      backgroundColor: "#D86A16",
       minHeight: 52,
       borderRadius: 14,
       alignItems: "center",
@@ -1700,7 +1700,7 @@ function createStyles(width, height, insets, isTablet) {
     },
 
     progressBox: {
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       borderRadius: 15,
       padding: 15,
       flexDirection: "row",
@@ -1783,8 +1783,8 @@ function createStyles(width, height, insets, isTablet) {
       minHeight: 46,
       borderRadius: 11,
       borderWidth: 1,
-      borderColor: "#BBD8CC",
-      backgroundColor: "#F3FAF7",
+      borderColor: "#F3C9A5",
+      backgroundColor: "#FFF4EC",
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
@@ -1792,7 +1792,7 @@ function createStyles(width, height, insets, isTablet) {
 
     photoButtonText: {
       marginLeft: 7,
-      color: "#0F7A5C",
+      color: "#D86A16",
       fontSize: moderateScale(13),
       fontWeight: "800",
     },
@@ -1808,8 +1808,8 @@ function createStyles(width, height, insets, isTablet) {
       minHeight: 48,
       borderRadius: 11,
       borderWidth: 1,
-      borderColor: "#9BCAB8",
-      backgroundColor: "#F1FAF6",
+      borderColor: "#F3C9A5",
+      backgroundColor: "#FFF4EC",
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
@@ -1817,7 +1817,7 @@ function createStyles(width, height, insets, isTablet) {
 
     secondaryButtonText: {
       marginLeft: 7,
-      color: "#0F7A5C",
+      color: "#D86A16",
       fontSize: moderateScale(14),
       fontWeight: "800",
     },
@@ -1854,7 +1854,7 @@ function createStyles(width, height, insets, isTablet) {
       minWidth: 105,
       height: 50,
       borderRadius: 11,
-      backgroundColor: "#0F7A5C",
+      backgroundColor: "#D86A16",
       alignItems: "center",
       justifyContent: "center",
       flexDirection: "row",
@@ -1975,7 +1975,7 @@ function createStyles(width, height, insets, isTablet) {
       marginTop: 3,
       fontSize: moderateScale(10),
       fontWeight: "700",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
 
     commentMessage: {
@@ -1988,7 +1988,7 @@ function createStyles(width, height, insets, isTablet) {
     attachmentText: {
       marginTop: 6,
       fontSize: moderateScale(11),
-      color: "#0F7A5C",
+      color: "#D86A16",
       fontWeight: "700",
     },
   });

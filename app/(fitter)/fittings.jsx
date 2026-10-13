@@ -151,7 +151,7 @@ export default function Fittings() {
       <View style={styles.center}>
         <ActivityIndicator
           size="large"
-          color="#0F7A5C"
+          color="#D86A16"
         />
 
         <Text style={styles.loadingText}>
@@ -247,7 +247,7 @@ export default function Fittings() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={["#0F7A5C"]}
+            colors={["#D86A16"]}
           />
         }
         ListEmptyComponent={
@@ -348,7 +348,7 @@ function FittingCard({
           <MaterialIcons
             name="confirmation-number"
             size={moderateScale(19, width)}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <Text style={styles.ticketNumber}>
@@ -437,7 +437,7 @@ function FittingCard({
           <MaterialIcons
             name="calendar-today"
             size={moderateScale(18, width)}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <View>
@@ -455,7 +455,7 @@ function FittingCard({
           <MaterialIcons
             name="schedule"
             size={moderateScale(19, width)}
-            color="#0F7A5C"
+            color="#D86A16"
           />
 
           <View>
@@ -495,7 +495,7 @@ function FittingCard({
         <MaterialIcons
           name="arrow-forward"
           size={moderateScale(20, width)}
-          color="#0F7A5C"
+          color="#D86A16"
         />
       </View>
     </TouchableOpacity>
@@ -556,14 +556,14 @@ function createStyles(width, height, { isTablet, numColumns }) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
     },
 
     center: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#F4F7F6",
+      backgroundColor: "#F3EEE8",
     },
 
     loadingText: {
@@ -573,32 +573,33 @@ function createStyles(width, height, { isTablet, numColumns }) {
     },
 
     header: {
-      backgroundColor: "#FFFFFF",
-      paddingHorizontal: ms(20),
-      paddingTop: ms(55),
-      paddingBottom: ms(18),
-      borderBottomWidth: 1,
-      borderBottomColor: "#E5ECE8",
+      backgroundColor: "#0F2D52",
+      height: 160,
+      paddingTop: 50,
+      paddingHorizontal: 18,
+      justifyContent: "center",
+      borderBottomLeftRadius: 30,
+      borderBottomRightRadius: 30,
     },
 
     smallTitle: {
-      fontSize: ms(11),
-      fontWeight: "700",
-      letterSpacing: 1.4,
-      color: "#0F7A5C",
+      fontSize: ms(10),
+      fontWeight: "800",
+      letterSpacing: 1.2,
+      color: "#F5A623",
     },
 
     title: {
-      marginTop: ms(4),
-      fontSize: ms(28, 0.4),
-      fontWeight: "800",
-      color: "#17221E",
+      marginTop: ms(3),
+      fontSize: ms(22, 0.4),
+      fontWeight: "bold",
+      color: "#FFFFFF",
     },
 
     subtitle: {
-      marginTop: ms(5),
-      fontSize: ms(13),
-      color: "#74817C",
+      marginTop: ms(3),
+      fontSize: ms(12),
+      color: "#D5DCE5",
     },
 
     searchContainer: {
@@ -669,7 +670,7 @@ function createStyles(width, height, { isTablet, numColumns }) {
       width: ms(78),
       height: ms(78),
       borderRadius: ms(39),
-      backgroundColor: "#EAF2EE",
+      backgroundColor: "#FFF4EC",
       alignItems: "center",
       justifyContent: "center",
     },
@@ -719,7 +720,7 @@ function createStyles(width, height, { isTablet, numColumns }) {
       marginLeft: ms(7),
       fontSize: ms(13),
       fontWeight: "800",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
 
     statusBadge: {
@@ -739,7 +740,7 @@ function createStyles(width, height, { isTablet, numColumns }) {
       marginTop: ms(13),
       fontSize: ms(19),
       fontWeight: "800",
-      color: "#17221E",
+      color: "#0F2D52",
     },
 
     detailRow: {
@@ -770,7 +771,7 @@ function createStyles(width, height, { isTablet, numColumns }) {
       marginTop: ms(15),
       padding: ms(12),
       borderRadius: ms(12),
-      backgroundColor: "#EAF5F0",
+      backgroundColor: "#FFF4EC",
       flexDirection: "row",
       justifyContent: "space-between",
     },
@@ -823,7 +824,7 @@ function createStyles(width, height, { isTablet, numColumns }) {
       marginRight: ms(5),
       fontSize: ms(13),
       fontWeight: "800",
-      color: "#0F7A5C",
+      color: "#D86A16",
     },
   });
 }

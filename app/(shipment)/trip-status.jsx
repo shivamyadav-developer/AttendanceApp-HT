@@ -154,16 +154,11 @@ export default function TripStatus() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-
+    <View style={styles.container}>
+      {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
         <View style={styles.iconBox}>
-          <MaterialIcons name="assignment" size={26} color="#D96A17" />
+          <MaterialIcons name="assignment" size={26} color="#fff" />
         </View>
 
         <View>
@@ -171,6 +166,12 @@ export default function TripStatus() {
           <Text style={styles.subtitle}>Track and update this trip</Text>
         </View>
       </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
 
       {/* Live Map Card */}
 
@@ -417,47 +418,53 @@ export default function TripStatus() {
           )}
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F7F7",
+    backgroundColor: "#F3EEE8",
   },
 
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
     paddingBottom: 30,
-    marginTop: 30,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    backgroundColor: "#0F2D52",
+    height: 160,
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
 
   iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
-    backgroundColor: "#FFF0E6",
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
 
   title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#3A2415",
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
     letterSpacing: 0.2,
   },
 
   subtitle: {
-    color: "#8A8A8A",
+    color: "#D5DCE5",
     marginTop: 3,
     fontSize: 13,
   },
@@ -517,7 +524,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14.5,
     fontWeight: "800",
-    color: "#3A2415",
+    color: "#0F2D52",
     letterSpacing: 0.1,
   },
 
@@ -624,7 +631,7 @@ const styles = StyleSheet.create({
   mapGradientTagText: {
     fontSize: 11.5,
     fontWeight: "700",
-    color: "#3A2415",
+    color: "#0F2D52",
   },
 
   mapFooterRow: {
@@ -710,7 +717,7 @@ const styles = StyleSheet.create({
   tripTitle: {
     fontSize: 21,
     fontWeight: "800",
-    color: "#3A2415",
+    color: "#0F2D52",
   },
 
   statusBadge: {
@@ -758,7 +765,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#3A2415",
+    color: "#0F2D52",
     marginTop: 1,
   },
 
@@ -810,7 +817,7 @@ const styles = StyleSheet.create({
   },
 
   timelineLabelActive: {
-    color: "#3A2415",
+    color: "#0F2D52",
   },
 
   button: {

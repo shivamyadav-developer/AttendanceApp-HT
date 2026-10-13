@@ -7,6 +7,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#ff7b00",
+        
       }}
     >
       <Tabs.Screen
@@ -28,16 +29,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-
-      {/* <Tabs.Screen
-        name="voice"
-        options={{
-          title: "Voice",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="mic-outline" size={size} color={color} />
-          ),
-        }}
-      /> */}
 
       <Tabs.Screen
         name="LMS"
@@ -63,26 +54,41 @@ export default function TabsLayout() {
         }}
       />
 
-  <Tabs.Screen
-  name="barcode"
-  options={{
-    title: "New Lead",
-    tabBarIcon: ({ color, size }) => (
-      <Ionicons
-        name="person-add-outline"
-        size={size}
-        color={color}
+
+      {/* NEW TAB */}
+      <Tabs.Screen
+        name="lead"
+        options={{
+          title: "Lead",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={size} color={color} />
+          ),
+        }}
       />
-    ),
-  }}
-/>
+      <Tabs.Screen
+        name="barcode"
+        options={{
+          title: "NewLead",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="person-add-outline"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
 
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Ionicons
+              name="person-circle-outline"
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
