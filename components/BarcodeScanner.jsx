@@ -486,6 +486,9 @@ export default function BarcodeScanner() {
         // SUBMISSION DETAILS
         submittedAt: new Date().toISOString(),
         status: "SUBMITTED",
+
+        // LEAD SOURCE — always sent: leads from this screen are QR walk-ins
+        origin: "QR_WALKIN",
       };
 
       console.log("=================================");

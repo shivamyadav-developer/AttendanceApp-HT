@@ -178,7 +178,13 @@ export default function ProfileSettings({ role }) {
         </View>
 
         <View style={styles.headerInfo}>
-          <Text style={styles.name} numberOfLines={1}>
+          {/* Up to 2 lines; very long names shrink slightly instead of cutting off */}
+          <Text
+            style={styles.name}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
             {user?.name || "N/A"}
           </Text>
 
@@ -578,7 +584,8 @@ const styles = StyleSheet.create({
 
   name: {
     color: "#fff",
-    fontSize: 22,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: "bold",
   },
 

@@ -39,7 +39,41 @@ export function normalizeDashboard(raw = {}) {
     };
 }
 
+// Leaderboard row → only what the app shows (mobile numbers are left out)
+function normalizeLeaderRow(r = {}) {
+    return {
+        employeeId: String(r.employeeId ?? ""),
+        name: (r.employeeName || "").replace(/\s+/g, " ").trim() || "—",
+        department: r.department || "",
+        storeId: r.storeId ?? null,
+        storeName: r.storeName || r.location || "",
+        target: num(r.target),
+        achieved: num(r.achieved),
+        achievementPercentage: num(r.achievementPercentage),
+        rank: num(r.rank),
+    };
+}
+
 class DashboardService {
+    // Sales leaderboard for the current period (all staff, ranked by achieved)
+    async getLeaderboard() {
+        const response = await api.get("/ontrack/target/staff/leaderboard");
+
+        if (!response?.success) {
+            throw new Error(response?.message || "Failed to load leaderboard");
+        }
+
+        const data = response.data || {};
+        return {
+            startDate: data.startDate ?? null,
+            endDate: data.endDate ?? null,
+            totalEmployees: num(data.totalEmployees),
+            rows: Array.isArray(data.leaderboard)
+                ? data.leaderboard.map(normalizeLeaderRow)
+                : [],
+        };
+    }
+
     async getEmployeeDashboard() {
         const employeeNumber = await AsyncStorage.getItem("employeeNumber");
 

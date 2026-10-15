@@ -28,11 +28,32 @@ import lmsService from "../../services/lms.service";
 // Courses shown at a time in the list
 const PAGE_SIZE = 10;
 
+// Course status from the progress API → badge label + colours
+const STATUS_META = {
+  PASSED: { label: "Passed", color: "#2E7D32", bg: "#E8F5E9", icon: "checkmark-circle" },
+  FAILED: { label: "Failed", color: "#C62828", bg: "#FDECEA", icon: "close-circle" },
+  IN_PROGRESS: { label: "In Progress", color: "#D96A17", bg: "#FFF4EC", icon: "time" },
+  NOT_STARTED: { label: "Not Started", color: "#6B7280", bg: "#F3F4F6", icon: "ellipse-outline" },
+};
+
+function StatusBadge({ status }) {
+  const meta = STATUS_META[status] || STATUS_META.NOT_STARTED;
+  return (
+    <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
+      <Ionicons name={meta.icon} size={12} color={meta.color} />
+      <Text style={[styles.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
+    </View>
+  );
+}
+
 export default function LMS() {
   const insets = useSafeAreaInsets();
 
   const [user, setUser] = useState(null);
   const [courses, setCourses] = useState([]);
+  // From the progress API: overall summary + per-course progress by courseId
+  const [progressSummary, setProgressSummary] = useState(null);
+  const [courseProgress, setCourseProgress] = useState({});
 
   // How many courses are shown in the list ("Show More" adds 10 more)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -64,12 +85,14 @@ export default function LMS() {
     try {
       setLoading(true);
       const userData = await AsyncStorage.getItem("userData");
+      let empNo = null;
       if (userData) {
         const parsed = JSON.parse(userData);
         setUser(parsed);
-        setEmployeeNumber(parsed.employeeNumber || null);
+        empNo = parsed.employeeNumber || null;
+        setEmployeeNumber(empNo);
       }
-      await fetchCourses();
+      await Promise.all([fetchCourses(), fetchProgress(empNo)]);
     } catch (e) {
       Alert.alert("Error", "Failed to load user data");
     } finally {
@@ -86,9 +109,25 @@ export default function LMS() {
     }
   };
 
+  const fetchProgress = async (empNo = employeeNumber) => {
+    if (!empNo) return;
+    try {
+      const res = await lmsService.getEmployeeProgress(empNo);
+      if (!res.success) return;
+      setProgressSummary(res.data.summary);
+      const byId = {};
+      res.data.courses.forEach((c) => {
+        byId[c.courseId] = c;
+      });
+      setCourseProgress(byId);
+    } catch (e) {
+      console.error("fetchProgress:", e);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchCourses();
+    await Promise.all([fetchCourses(), fetchProgress()]);
     setRefreshing(false);
   };
 
@@ -182,6 +221,8 @@ export default function LMS() {
       if (submitRes.success && submitRes.data) {
         setResult(submitRes.data);
         setModalScreen("result");
+        // Update progress card, counts and this course's badge
+        fetchProgress();
       } else {
         Alert.alert("Error", "Failed to submit quiz.");
       }
@@ -205,9 +246,10 @@ export default function LMS() {
 
   // ─── Helpers ───────────────────────────────────────────────────────
 
+  // Overall progress from the progress API (completed ÷ total courses)
   const getCourseProgress = () => {
-    if (!courses.length) return 0;
-    return Math.round((courses.filter((c) => c.passed).length / courses.length) * 100);
+    if (progressSummary) return Math.round(progressSummary.overallProgress || 0);
+    return 0;
   };
 
   const parseContentPoints = (contentText) => {
@@ -303,9 +345,21 @@ export default function LMS() {
 
       {/* Progress card */}
       <View style={styles.progressCard}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.progressLabel}>Overall Progress</Text>
           <Text style={styles.progressValue}>{getCourseProgress()}%</Text>
+          {!!progressSummary && (
+            <>
+              <Text style={styles.progressSub}>
+                {progressSummary.completedCourses} of {progressSummary.totalCourses} courses completed
+              </Text>
+              {progressSummary.completedAttempts > 0 && (
+                <Text style={styles.progressSub}>
+                  Average score {Math.round(progressSummary.averagePercentage || 0)}%
+                </Text>
+              )}
+            </>
+          )}
         </View>
         <View style={styles.circle}>
           <Ionicons name="school" size={34} color="#fff" />
@@ -315,9 +369,10 @@ export default function LMS() {
       {/* Stats */}
       <View style={styles.statsRow}>
         {[
-          { num: courses.length, label: "Courses" },
-          { num: courses.filter((c) => c.completed).length, label: "In Progress" },
-          { num: courses.filter((c) => c.passed).length, label: "Completed" },
+          { num: progressSummary?.totalCourses ?? courses.length, label: "Courses" },
+          { num: progressSummary?.inProgressCourses ?? 0, label: "In Progress" },
+          { num: progressSummary?.passedCourses ?? 0, label: "Passed" },
+          { num: progressSummary?.failedCourses ?? 0, label: "Failed" },
         ].map((s) => (
           <View key={s.label} style={styles.statBox}>
             <Text style={styles.statNumber}>{s.num}</Text>
@@ -354,6 +409,23 @@ export default function LMS() {
                 {course.questionCount || "Multiple"} Qs
               </Text>
             </View>
+
+            {/* Employee's status + best score for this course */}
+            {(() => {
+              const p = courseProgress[course._id];
+              if (!p) return null;
+              return (
+                <View style={styles.courseProgressRow}>
+                  <StatusBadge status={p.status} />
+                  {p.completedAttempts > 0 && (
+                    <Text style={styles.bestScoreText}>
+                      Best {Math.round(p.bestPercentage)}% · {p.completedAttempts}{" "}
+                      {p.completedAttempts === 1 ? "attempt" : "attempts"}
+                    </Text>
+                  )}
+                </View>
+              );
+            })()}
           </View>
           <View style={styles.playButton}>
             <Ionicons name="chevron-forward" size={20} color="#fff" />
@@ -764,6 +836,26 @@ const styles = StyleSheet.create({
     elevation: 4,
   }, progressLabel: { color: "#777" },
   progressValue: { fontSize: 34, fontWeight: "bold", color: "#0B2D4A" },
+  progressSub: { marginTop: 2, fontSize: 12, color: "#666", fontWeight: "600" },
+
+  // Per-course status from the progress API
+  courseProgressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  statusBadgeText: { fontSize: 11, fontWeight: "700" },
+  bestScoreText: { fontSize: 11, color: "#555", fontWeight: "600" },
   circle: { width: 60, height: 60, borderRadius: 35, backgroundColor: "#ff7b00", justifyContent: "center", alignItems: "center" },
 
   // Stats
@@ -778,7 +870,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
     paddingVertical: 14,   // was 18
-    paddingHorizontal: 14,
+    paddingHorizontal: 4,  // 4 boxes now (was 14)
     marginHorizontal: 4,
     borderRadius: 14,      // was 16
     alignItems: "center",
@@ -792,7 +884,7 @@ const styles = StyleSheet.create({
 
   statText: {
     marginTop: 4,          // was 5
-    fontSize: 13,          // optional
+    fontSize: 12,          // 4 boxes now (was 13)
     color: "#666",
   },
 

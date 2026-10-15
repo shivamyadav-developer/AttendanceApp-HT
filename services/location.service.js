@@ -1,12 +1,34 @@
 // services/location.service.js
+//
+// Attendance is MANUAL: the user taps Check In / Check Out on the
+// Attendance screen. Nothing is checked in or out automatically.
+//
+// This service still watches GPS while the app is open, because:
+//  - the Attendance screen shows the distance to the nearest store
+//  - the delivery / fitter tracking maps listen to LOCATION_UPDATED
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { Alert, AppState } from 'react-native';
-import { MOCK_LOCATION_MESSAGE, checkStoreLocation, isMockLocation } from '../utils/location';
+import {
+    MAX_DISTANCE,
+    MOCK_LOCATION_MESSAGE,
+    checkStoreLocation,
+    isMockLocation,
+} from '../utils/location';
 import attendanceService from './attendance.service';
 import eventEmitter from './eventEmitter';
 import { BACKGROUND_LOCATION_TASK } from './geofence.task';
-import notificationService from './notification.service';
+
+// Keys the old automatic (background) attendance used — cleared on logout
+const LEGACY_KEYS = [
+    'bgTaskWasInside',
+    'bgTaskCooldowns',
+    'lastAutoAction',
+    'bgMockNotifiedAt',
+];
+
+const formatTime = (date) =>
+    date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
 class LocationService {
     constructor() {
@@ -14,91 +36,27 @@ class LocationService {
         this.appStateSubscription = null;
         this.isTracking = false;
         this.appState = AppState.currentState;
-        this.retryCount = 0;
-        this.maxRetries = 3;
-        this.isProcessing = false;
-        this.lastCheckInTime = 0;
-        this.lastCheckOutTime = 0;
-        this.CHECK_IN_COOLDOWN = 30_000;
-        this.CHECK_OUT_COOLDOWN = 30_000;
-        this.STALE_RECOVERY_COOLDOWN = 30_000;
-        this.lastStaleRecoveryTime = 0;
-        this.wasInsideOffice = null;
-        this.midnightTimeout = null;
-        this.lastMockAlertTime = 0;
-        this.MOCK_ALERT_COOLDOWN = 5 * 60_000;
+        this.isSubmitting = false; // a manual check-in/out is in progress
     }
 
-    // ── ✅ NEW: Persist wasInside across app restarts ─────────────────────────
-    async _loadWasInside() {
-        try {
-            const raw = await AsyncStorage.getItem('bgTaskWasInside');
-            if (raw === null) return null;
-            return raw === 'true';
-        } catch { return null; }
-    }
-
-    async _saveWasInside(value) {
-        try {
-            await AsyncStorage.setItem('bgTaskWasInside', String(value));
-        } catch { }
-    }
-
-    // ── Permission helpers ───────────────────────────────────────────────────
+    // ── Permissions ──────────────────────────────────────────────────────────
+    // Only "while using the app" is needed now — no background location.
 
     async _requestPermissions() {
-        const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
-        if (fgStatus !== 'granted') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
             Alert.alert(
                 'Permission Required',
-                'Please allow location access for attendance tracking. You can enable it in Settings.'
+                'Please allow location access to check in and out. You can enable it in Settings.'
             );
             return false;
         }
-
-        const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
-        if (bgStatus !== 'granted') {
-            Alert.alert(
-                'Background Location Required',
-                'To auto check-in/out when the app is closed, please select "Always" for location access in Settings.',
-                [{ text: 'OK' }]
-            );
-        }
-
         return true;
     }
 
-    // ── Background task ──────────────────────────────────────────────────────
-
-    async _startBackgroundTask() {
-        try {
-            const isRegistered = await Location.hasStartedLocationUpdatesAsync(
-                BACKGROUND_LOCATION_TASK
-            );
-            if (isRegistered) {
-                console.log('[LocationService] Background task already running');
-                return;
-            }
-
-            await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-                accuracy: Location.Accuracy.Balanced,
-                timeInterval: 10000,
-                distanceInterval: 8,
-                foregroundService: {
-                    notificationTitle: 'Attendance Tracking',
-                    notificationBody: 'Tracking your location for auto check-in/out',
-                    notificationColor: '#D96A17',
-                },
-                pausesUpdatesAutomatically: false,
-                showsBackgroundLocationIndicator: true,
-                activityType: Location.ActivityType.Other,
-            });
-
-            console.log('[LocationService] Background task started');
-        } catch (err) {
-            console.error('[LocationService] Failed to start background task:', err);
-        }
-    }
+    // ── Background task cleanup ──────────────────────────────────────────────
+    // Older app versions ran a background task for auto check-in/out.
+    // Make sure it is stopped on phones that still have it registered.
 
     async _stopBackgroundTask() {
         try {
@@ -107,14 +65,14 @@ class LocationService {
             );
             if (isRegistered) {
                 await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-                console.log('[LocationService] Background task stopped');
+                console.log('[LocationService] Old background task stopped');
             }
         } catch (err) {
             console.error('[LocationService] Failed to stop background task:', err);
         }
     }
 
-    // ── Main start ───────────────────────────────────────────────────────────
+    // ── Start / stop foreground location watching ────────────────────────────
 
     async startTracking() {
         if (this.isTracking) {
@@ -132,9 +90,7 @@ class LocationService {
             const permOk = await this._requestPermissions();
             if (!permOk) return false;
 
-            // ✅ Restore wasInside from AsyncStorage so we don't false-trigger on restart
-            this.wasInsideOffice = await this._loadWasInside();
-            console.log('[LocationService] Restored wasInside:', this.wasInsideOffice);
+            await this._stopBackgroundTask();
 
             this.locationSubscription = await Location.watchPositionAsync(
                 {
@@ -153,307 +109,14 @@ class LocationService {
                 this.handleAppStateChange.bind(this)
             );
 
-            await this._startBackgroundTask();
-
-            this.scheduleMidnightRollover();
             await this.getCurrentLocation();
-
             return true;
-
         } catch (error) {
             console.error('[LocationService] Failed to start tracking:', error);
             this.isTracking = false;
             return false;
         }
     }
-
-    // ── Foreground location handler ──────────────────────────────────────────
-
-    async handleLocationUpdate(location) {
-        // ── Mock-location guard: no check-in, no check-out, state untouched ──
-        if (isMockLocation(location)) {
-            await this._handleMockLocation(location);
-            return;
-        }
-
-        // Inside = within MAX_DISTANCE of ANY configured store
-        const { allowed: isInsideOffice, store, distance } = checkStoreLocation(
-            location.coords.latitude,
-            location.coords.longitude
-        );
-
-        eventEmitter.emit('LOCATION_UPDATED', {
-            distance,
-            isInside: isInsideOffice,
-            isMocked: false,
-            storeName: store?.name ?? null,
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            timestamp: new Date().toISOString(),
-        });
-
-        await this._saveLastLocation(location.coords, distance, isInsideOffice, store?.name);
-
-        if (this.isProcessing) return;
-
-        try {
-            this.isProcessing = true;
-
-            const userData = await AsyncStorage.getItem('userData');
-            if (!userData) {
-                console.log('[LocationService] No user data, stopping tracking');
-                this.stopTracking();
-                return;
-            }
-
-            const user = JSON.parse(userData);
-            const employeeNumber = user.employeeNumber;
-            if (!employeeNumber) return;
-
-            const now = Date.now();
-
-            const currentStatus = await attendanceService.getCurrentStatus(employeeNumber);
-            const isCheckedIn = currentStatus === 'CHECKED_IN';
-
-            console.log(
-                `[LocationService] nearest=${store?.name} dist=${distance}m inside=${isInsideOffice} ` +
-                `checkedIn=${isCheckedIn} wasInside=${this.wasInsideOffice}`
-            );
-
-            // ── STALE SESSION RECOVERY ────────────────────────────────────────
-            if (
-                isCheckedIn &&
-                attendanceService.isOpenSessionStale() &&
-                (now - this.lastStaleRecoveryTime) > this.STALE_RECOVERY_COOLDOWN
-            ) {
-                console.log('[LocationService] Stale open session — recovering...');
-                this.lastStaleRecoveryTime = now;
-
-                await attendanceService.checkOut(
-                    employeeNumber,
-                    location.coords.latitude,
-                    location.coords.longitude
-                );
-
-                if (isInsideOffice) {
-                    this.lastCheckInTime = now;
-                    this.wasInsideOffice = true;
-                    await this._saveWasInside(true);
-                    await this.performCheckIn(
-                        employeeNumber,
-                        location.coords.latitude,
-                        location.coords.longitude
-                    );
-                } else {
-                    this.wasInsideOffice = false;
-                    await this._saveWasInside(false);
-                }
-
-                this.retryCount = 0;
-                return;
-            }
-
-            // ── AUTO CHECK-IN ─────────────────────────────────────────────────
-            if (
-                isInsideOffice &&
-                !isCheckedIn &&
-                (now - this.lastCheckInTime) > this.CHECK_IN_COOLDOWN
-            ) {
-                console.log('[LocationService] AUTO CHECK-IN triggered');
-                this.lastCheckInTime = now;
-                this.wasInsideOffice = true;
-                await this._saveWasInside(true);
-                await this.performCheckIn(
-                    employeeNumber,
-                    location.coords.latitude,
-                    location.coords.longitude
-                );
-            }
-            // ── AUTO CHECK-OUT ────────────────────────────────────────────────
-            else if (
-                !isInsideOffice &&
-                isCheckedIn &&
-                (now - this.lastCheckOutTime) > this.CHECK_OUT_COOLDOWN
-            ) {
-                console.log('[LocationService] AUTO CHECK-OUT triggered');
-                this.lastCheckOutTime = now;
-                this.wasInsideOffice = false;
-                await this._saveWasInside(false);
-                await this.performCheckOut(
-                    employeeNumber,
-                    location.coords.latitude,
-                    location.coords.longitude
-                );
-            } else {
-                this.wasInsideOffice = isInsideOffice;
-                await this._saveWasInside(isInsideOffice);
-            }
-
-            this.retryCount = 0;
-
-        } catch (error) {
-            console.error('[LocationService] Error handling location update:', error);
-            if (this.retryCount < this.maxRetries) {
-                this.retryCount++;
-                setTimeout(() => this.handleLocationUpdate(location), 2000 * this.retryCount);
-            }
-        } finally {
-            this.isProcessing = false;
-        }
-    }
-
-    // ── Mock location ────────────────────────────────────────────────────────
-
-    async _handleMockLocation(location) {
-        console.warn('[LocationService] Mock location detected → blocking attendance action');
-
-        eventEmitter.emit('LOCATION_UPDATED', {
-            distance: null,
-            isInside: false,
-            isMocked: true,
-            storeName: null,
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            timestamp: new Date().toISOString(),
-        });
-
-        await AsyncStorage.setItem('lastLocation', JSON.stringify({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            distance: null,
-            isInside: false,
-            isMocked: true,
-            timestamp: new Date().toISOString(),
-        }));
-
-        const now = Date.now();
-        if (now - this.lastMockAlertTime < this.MOCK_ALERT_COOLDOWN) return;
-        this.lastMockAlertTime = now;
-
-        if (AppState.currentState === 'active') {
-            Alert.alert('Fake Location Detected', MOCK_LOCATION_MESSAGE, [{ text: 'OK' }]);
-        } else {
-            await notificationService.notifyMockLocation(MOCK_LOCATION_MESSAGE);
-        }
-    }
-
-    // ── Check-in / Check-out helpers ─────────────────────────────────────────
-
-    async performCheckIn(employeeNumber, latitude, longitude) {
-        try {
-            console.log('[LocationService] Performing check-in...');
-            const result = await attendanceService.checkIn(employeeNumber, latitude, longitude);
-
-            if (result.success) {
-                console.log('[LocationService] Check-in OK:', result.message);
-
-                await AsyncStorage.setItem('lastAutoAction', JSON.stringify({
-                    action: 'CHECK_IN',
-                    timestamp: new Date().toISOString(),
-                    message: result.message,
-                }));
-
-                const isForeground = AppState.currentState === 'active';
-
-                if (isForeground && !result.alreadyCheckedIn) {
-                    Alert.alert(
-                        'Auto Check-In ✓',
-                        `Welcome! Checked in at ${new Date().toLocaleTimeString()}`,
-                        [{ text: 'OK' }]
-                    );
-                }
-
-                if (!isForeground && !result.alreadyCheckedIn) {
-                    await notificationService.notifyCheckIn(new Date());
-                }
-
-                setTimeout(() => {
-                    eventEmitter.emit('ATTENDANCE_UPDATED');
-                }, 1500);
-
-                setTimeout(() => {
-                    attendanceService.clearStatusCache();
-                }, 5000);
-
-            } else {
-                console.error('[LocationService] Check-in failed:', result.message);
-                this.lastCheckInTime = 0;
-            }
-        } catch (error) {
-            console.error('[LocationService] Check-in error:', error);
-            this.lastCheckInTime = 0;
-        }
-    }
-
-    async performCheckOut(employeeNumber, latitude, longitude) {
-        try {
-            console.log('[LocationService] Performing check-out...');
-            const result = await attendanceService.checkOut(employeeNumber, latitude, longitude);
-
-            if (result.success) {
-                console.log('[LocationService] Check-out OK:', result.message);
-
-                const durationMinutes = result.data?.attendance?.durationMinutes || 0;
-                let durationMsg = '';
-                if (durationMinutes) {
-                    durationMsg = `\nTotal: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
-                }
-
-                await AsyncStorage.setItem('lastAutoAction', JSON.stringify({
-                    action: 'CHECK_OUT',
-                    timestamp: new Date().toISOString(),
-                    duration: durationMinutes,
-                    message: result.message,
-                }));
-
-                const isForeground = AppState.currentState === 'active';
-
-                if (isForeground) {
-                    Alert.alert(
-                        'Auto Check-Out ✓',
-                        `Checked out at ${new Date().toLocaleTimeString()}.${durationMsg}`,
-                        [{ text: 'OK' }]
-                    );
-                }
-
-                if (!isForeground) {
-                    await notificationService.notifyCheckOut(new Date(), durationMinutes);
-                }
-
-                setTimeout(() => {
-                    eventEmitter.emit('ATTENDANCE_UPDATED');
-                }, 1500);
-
-                setTimeout(() => {
-                    attendanceService.clearAll();
-                }, 5000);
-
-            } else {
-                console.error('[LocationService] Check-out failed:', result.message);
-                this.lastCheckOutTime = 0;
-            }
-        } catch (error) {
-            console.error('[LocationService] Check-out error:', error);
-            this.lastCheckOutTime = 0;
-        }
-    }
-
-    // ── App state changes ────────────────────────────────────────────────────
-
-    handleAppStateChange(nextAppState) {
-        console.log(`[LocationService] AppState: ${this.appState} → ${nextAppState}`);
-
-        if (this.appState.match(/inactive|background/) && nextAppState === 'active') {
-            console.log('[LocationService] App foregrounded — refreshing');
-            attendanceService.clearStatusCache();
-            eventEmitter.emit('ATTENDANCE_UPDATED');
-            this.getCurrentLocation();
-        }
-
-        this.appState = nextAppState;
-    }
-
-    // ── Stop ─────────────────────────────────────────────────────────────────
 
     stopTracking() {
         if (this.locationSubscription) {
@@ -466,122 +129,206 @@ class LocationService {
             this.appStateSubscription.remove();
             this.appStateSubscription = null;
         }
-        if (this.midnightTimeout) {
-            clearTimeout(this.midnightTimeout);
-            this.midnightTimeout = null;
-        }
     }
 
-    // ✅ NEW: clear in-memory state so a fresh login doesn't inherit
-    // the previous user's geofence/cooldown state.
-    _resetState() {
-        this.retryCount = 0;
-        this.isProcessing = false;
-        this.lastCheckInTime = 0;
-        this.lastCheckOutTime = 0;
-        this.lastStaleRecoveryTime = 0;
-        this.wasInsideOffice = null;
-        this.lastMockAlertTime = 0;
-    }
-
-    // ✅ CHANGED: now actually unregisters the background task AND clears
-    // the persisted keys that background task uses, so nothing survives
-    // into the next user's session.
+    // Logout: stop everything and clear saved location state
     async stopAllTracking() {
         this.stopTracking();
         await this._stopBackgroundTask();
-        this._resetState();
+        this.isSubmitting = false;
         try {
-            await AsyncStorage.multiRemove([
-                'bgTaskWasInside',
-                'bgTaskCooldowns',
-                'lastAutoAction',
-                'lastLocation',
-                'bgMockNotifiedAt',
-            ]);
+            await AsyncStorage.multiRemove([...LEGACY_KEYS, 'lastLocation']);
         } catch (e) {
-            console.error('[LocationService] Failed clearing bg keys:', e);
+            console.error('[LocationService] Failed clearing location keys:', e);
         }
         console.log('[LocationService] All tracking stopped');
     }
 
-    // ── Midnight rollover ────────────────────────────────────────────────────
+    // ── GPS updates: display only, never checks in/out ───────────────────────
 
-    scheduleMidnightRollover() {
-        if (this.midnightTimeout) clearTimeout(this.midnightTimeout);
+    async handleLocationUpdate(location) {
+        const isMocked = isMockLocation(location);
+        const { allowed, store, distance } = checkStoreLocation(
+            location.coords.latitude,
+            location.coords.longitude
+        );
 
-        const now = new Date();
-        const nextMidnight = new Date(now);
-        nextMidnight.setHours(24, 0, 5, 0);
-        const ms = nextMidnight.getTime() - now.getTime();
+        // A mocked fix is never treated as "inside" a store
+        const payload = {
+            distance: isMocked ? null : distance,
+            isInside: isMocked ? false : allowed,
+            isMocked,
+            storeName: isMocked ? null : (store?.name ?? null),
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            timestamp: new Date().toISOString(),
+        };
 
-        console.log(`[LocationService] Midnight rollover in ${Math.round(ms / 1000)}s`);
-        this.midnightTimeout = setTimeout(() => this.handleMidnightRollover(), ms);
+        eventEmitter.emit('LOCATION_UPDATED', payload);
+
+        try {
+            await AsyncStorage.setItem('lastLocation', JSON.stringify(payload));
+        } catch { }
     }
 
-    async handleMidnightRollover() {
+    // ── Manual check-in / check-out ──────────────────────────────────────────
+
+    // Fresh GPS fix + checks shared by both buttons.
+    // Returns { ok: true, coords, store } or { ok: false, message }.
+    async _verifyAtStore(actionLabel) {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') {
+            const granted = await this._requestPermissions();
+            if (!granted) {
+                return { ok: false, message: 'Location permission is required.' };
+            }
+        }
+
+        let location;
         try {
-            console.log('[LocationService] Midnight rollover');
-            const userData = await AsyncStorage.getItem('userData');
-            if (!userData) return;
-            const { employeeNumber } = JSON.parse(userData);
-            if (!employeeNumber) return;
+            location = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.High,
+            });
+        } catch (e) {
+            return {
+                ok: false,
+                message: 'Could not get your location. Turn on GPS and try again.',
+            };
+        }
 
-            const status = await attendanceService.getCurrentStatus(employeeNumber);
-            if (status !== 'CHECKED_IN') return;
+        if (isMockLocation(location)) {
+            return { ok: false, message: MOCK_LOCATION_MESSAGE };
+        }
 
-            // Fall back to the last known fix if a fresh one isn't available
-            let location = await this.getCurrentLocation();
-            if (!location) {
-                const raw = await AsyncStorage.getItem('lastLocation');
-                location = raw ? { ...JSON.parse(raw), isInside: false } : null;
-            }
-            if (!location) {
-                console.log('[LocationService] No location for midnight rollover — skipping');
-                return;
-            }
-            // Never act on a fake fix; stale-session recovery will close it later
-            if (location.isMocked) {
-                console.warn('[LocationService] Mock location at midnight rollover — skipping');
-                return;
-            }
-            const lat = location.latitude;
-            const lng = location.longitude;
+        const { allowed, store, distance, message } = checkStoreLocation(
+            location.coords.latitude,
+            location.coords.longitude
+        );
 
-            console.log("[LocationService] Closing yesterday's session");
-            await attendanceService.checkOut(employeeNumber, lat, lng);
+        // Keep the screen's distance display in sync with this fresh fix
+        await this.handleLocationUpdate(location);
 
-            if (location?.isInside) {
-                console.log("[LocationService] Still inside — opening today's session");
-                this.lastCheckInTime = Date.now();
-                this.wasInsideOffice = true;
-                await this._saveWasInside(true);
-                await this.performCheckIn(employeeNumber, lat, lng);
-            } else {
-                attendanceService.clearAll();
-                this.wasInsideOffice = false;
-                await this._saveWasInside(false);
-                eventEmitter.emit('ATTENDANCE_UPDATED');
+        if (!allowed) {
+            return {
+                ok: false,
+                message: store
+                    ? `You are ${distance} m from ${store.name}. You must be within ${MAX_DISTANCE} m of a store to ${actionLabel}.`
+                    : message,
+            };
+        }
+
+        return { ok: true, coords: location.coords, store };
+    }
+
+    async _getEmployeeNumber() {
+        const raw = await AsyncStorage.getItem('userData');
+        const user = raw ? JSON.parse(raw) : null;
+        return user?.employeeNumber || null;
+    }
+
+    async manualCheckIn() {
+        if (this.isSubmitting) {
+            return { success: false, message: 'Please wait…' };
+        }
+        this.isSubmitting = true;
+
+        try {
+            const employeeNumber = await this._getEmployeeNumber();
+            if (!employeeNumber) {
+                return { success: false, message: 'Session expired. Please login again.' };
             }
+
+            const check = await this._verifyAtStore('check in');
+            if (!check.ok) return { success: false, message: check.message };
+
+            const result = await attendanceService.checkIn(
+                employeeNumber,
+                check.coords.latitude,
+                check.coords.longitude
+            );
+
+            if (!result.success) {
+                return { success: false, message: result.message || 'Check-in failed. Please try again.' };
+            }
+
+            // Refresh status + history on the Attendance screen
+            eventEmitter.emit('ATTENDANCE_UPDATED');
+
+            return {
+                success: true,
+                // Server time if the API returns it, otherwise now
+                time: result.data?.attendance?.checkIn || new Date().toISOString(),
+                message: result.alreadyCheckedIn
+                    ? 'You are already checked in.'
+                    : `Checked in at ${formatTime(new Date())} near ${check.store.name}.`,
+            };
         } catch (error) {
-            console.error('[LocationService] Midnight rollover error:', error);
+            console.error('[LocationService] Manual check-in error:', error);
+            return { success: false, message: 'Check-in failed. Please try again.' };
         } finally {
-            this.scheduleMidnightRollover();
+            this.isSubmitting = false;
         }
     }
 
-    // ── Utilities ────────────────────────────────────────────────────────────
+    async manualCheckOut() {
+        if (this.isSubmitting) {
+            return { success: false, message: 'Please wait…' };
+        }
+        this.isSubmitting = true;
 
-    async _saveLastLocation(coords, distance, isInside, storeName = null) {
-        await AsyncStorage.setItem('lastLocation', JSON.stringify({
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            distance,
-            isInside,
-            storeName,
-            timestamp: new Date().toISOString(),
-        }));
+        try {
+            const employeeNumber = await this._getEmployeeNumber();
+            if (!employeeNumber) {
+                return { success: false, message: 'Session expired. Please login again.' };
+            }
+
+            const check = await this._verifyAtStore('check out');
+            if (!check.ok) return { success: false, message: check.message };
+
+            const result = await attendanceService.checkOut(
+                employeeNumber,
+                check.coords.latitude,
+                check.coords.longitude
+            );
+
+            if (!result.success) {
+                return { success: false, message: result.message || 'Check-out failed. Please try again.' };
+            }
+
+            eventEmitter.emit('ATTENDANCE_UPDATED');
+
+            const minutes = result.data?.attendance?.durationMinutes || 0;
+            const duration = minutes
+                ? ` Total: ${Math.floor(minutes / 60)}h ${minutes % 60}m.`
+                : '';
+
+            return {
+                success: true,
+                // Server time if the API returns it, otherwise now
+                time: result.data?.attendance?.checkOut || new Date().toISOString(),
+                message: `Checked out at ${formatTime(new Date())}.${duration}`,
+            };
+        } catch (error) {
+            console.error('[LocationService] Manual check-out error:', error);
+            return { success: false, message: 'Check-out failed. Please try again.' };
+        } finally {
+            this.isSubmitting = false;
+        }
     }
+
+    // ── App state ────────────────────────────────────────────────────────────
+
+    handleAppStateChange(nextAppState) {
+        if (this.appState.match(/inactive|background/) && nextAppState === 'active') {
+            console.log('[LocationService] App foregrounded — refreshing');
+            attendanceService.clearStatusCache();
+            eventEmitter.emit('ATTENDANCE_UPDATED');
+            this.getCurrentLocation();
+        }
+        this.appState = nextAppState;
+    }
+
+    // ── Utilities ────────────────────────────────────────────────────────────
 
     async getCurrentLocation() {
         try {
@@ -598,7 +345,6 @@ class LocationService {
                 location.coords.longitude
             );
 
-            // A mocked fix is never treated as "inside" a store
             const result = {
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
@@ -625,17 +371,6 @@ class LocationService {
     async isInsideOffice() {
         const loc = await this.getCurrentLocation();
         return loc ? loc.isInside : false;
-    }
-
-    async getLastAutoAction() {
-        try {
-            const raw = await AsyncStorage.getItem('lastAutoAction');
-            return raw ? JSON.parse(raw) : null;
-        } catch { return null; }
-    }
-
-    async clearLastAutoAction() {
-        try { await AsyncStorage.removeItem('lastAutoAction'); } catch { }
     }
 }
 

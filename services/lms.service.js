@@ -35,6 +35,31 @@ class LMSService {
     }
   }
   
+  // Employee's progress: overall summary + status/score per course
+  async getEmployeeProgress(employeeId) {
+    try {
+      const response = await api.get(
+        `/ontrack/lms/employee/${encodeURIComponent(employeeId)}/progress`
+      );
+
+      return {
+        success: response.success,
+        data: {
+          summary: response.data?.summary || null,
+          courses: Array.isArray(response.data?.courses) ? response.data.courses : [],
+        },
+        message: response.message,
+      };
+    } catch (error) {
+      console.error('Get progress error:', error);
+      return {
+        success: false,
+        data: { summary: null, courses: [] },
+        message: error.message || 'Failed to fetch progress',
+      };
+    }
+  }
+
   async getCourseDetails(courseId) {
     try {
       const response = await api.get(`/ontrack/lms/course/${courseId}`);

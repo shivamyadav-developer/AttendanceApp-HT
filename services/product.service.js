@@ -31,6 +31,8 @@ export const submitQRLead = async ({
       remarks,
       submittedAt: new Date().toISOString(),
       status: "SUBMITTED",
+      // Lead source — always sent
+      origin: "QR_WALKIN",
     };
 
     console.log("Submitting QR Lead:", payload);

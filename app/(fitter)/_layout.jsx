@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import ResponsiveTabLabel from "../../components/ResponsiveTabLabel";
 
 export default function FitterLayout() {
   return (
@@ -13,22 +13,12 @@ export default function FitterLayout() {
         tabBarItemStyle: {
           paddingHorizontal: 0,
         },
-        // Bold, single-line label that shrinks slightly if it doesn't fit
+        // Same bold label size on every tab, sized to the device width.
+        // longestLabelChars = longest title below ("Completed")
         tabBarLabel: ({ color, children }) => (
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            allowFontScaling={false}
-            style={{
-              color,
-              fontSize: 10,
-              fontWeight: "700",
-              marginTop: 2,
-            }}
-          >
+          <ResponsiveTabLabel color={color} tabCount={6} longestLabelChars={9}>
             {children}
-          </Text>
+          </ResponsiveTabLabel>
         ),
       }}
     >

@@ -27,7 +27,8 @@ const TAB_MENUS = {
   staff: {
     group: "(tabs)",
     items: [
-      { name: "home", title: "Home", set: "Ionicons", icon: "home" },
+      { name: "home", title: "Target", set: "MaterialCommunityIcons", icon: "bullseye-arrow" },
+      { name: "leaderboard", title: "Leaderboard", set: "MaterialCommunityIcons", icon: "crown-outline" },
       { name: "attend", title: "Attend", set: "Ionicons", icon: "finger-print-outline" },
       { name: "LMS", title: "LMS", set: "Ionicons", icon: "school-outline" },
       { name: "lead", title: "Lead", set: "Ionicons", icon: "people-outline" },

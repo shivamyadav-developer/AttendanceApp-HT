@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import ResponsiveTabLabel from "../../components/ResponsiveTabLabel";
 
 export default function TabsLayout() {
   return (
@@ -12,44 +12,38 @@ export default function TabsLayout() {
         tabBarItemStyle: {
           paddingHorizontal: 0,
         },
-        // Bold, single-line label that shrinks slightly if it doesn't fit
+        // Same bold label size on every tab, sized to the device width.
+        // longestLabelChars = longest title below ("Leaders"/"NewLead"/"Profile")
         tabBarLabel: ({ color, children }) => (
-          <Text
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            allowFontScaling={false}
-            style={{
-              color,
-              fontSize: 10,
-              fontWeight: "700",
-              marginTop: 2,
-            }}
-          >
+          <ResponsiveTabLabel color={color} tabCount={7} longestLabelChars={7}>
             {children}
-          </Text>
+          </ResponsiveTabLabel>
         ),
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: "Home",
+          title: "Target",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <MaterialCommunityIcons name="bullseye-arrow" size={size} color={color} />
           ),
         }}
       />
 
       <Tabs.Screen
-        name="attend"
+        name="leaderboard"
         options={{
-          title: "Attend",
+          // Short label so it fits at the same size as the other tabs
+          title: "Leaders",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="finger-print-outline" size={size} color={color} />
+            // crown glyph draws a little small — +2 to match the others
+            <MaterialCommunityIcons name="crown-outline" size={size + 2} color={color} />
           ),
         }}
       />
+
+  
 
       <Tabs.Screen
         name="LMS"
@@ -61,6 +55,16 @@ export default function TabsLayout() {
         }}
       />
 
+    <Tabs.Screen
+        name="attend"
+        options={{
+          title: "Attend",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="finger-print-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      
       {/* NEW TAB */}
       <Tabs.Screen
         name="lead"
@@ -98,7 +102,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-
 
     </Tabs>
   );

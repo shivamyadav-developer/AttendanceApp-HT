@@ -30,7 +30,15 @@ import {
 import { Directory, File, Paths } from "expo-file-system";
 import { useFocusEffect } from "expo-router";
 
-import { getQRLeads } from "../../services/lead";
+import {
+  CALL_OUTCOME_STATUSES,
+  CRM_LEAD_STATUSES,
+  crmStatusAfterCall,
+  getCrmStatusInfo,
+  getQRLeads,
+  markLeadCalled,
+  updateLeadStatus,
+} from "../../services/lead";
 
 // =========================================================
 // HELPERS
@@ -52,24 +60,48 @@ const formatDate = (value) => {
   });
 };
 
-// Only 3 statuses are shown in the app:
+// "NOT_INTERESTED" → "Not Interested" (label from the CRM list when known)
+const prettyStatus = (value) =>
+  getCrmStatusInfo(value)?.label ||
+  String(value || "")
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ") ||
+  "-";
+
+// The lead's real progress: converted → CRM status → sync status.
+// (`status` is only the CRM sync state, e.g. "SYNCED", so it never changes
+//  after a call; `crmStatus` does.)
+const getLeadStatus = (lead) =>
+  lead?.isConverted ? "CONVERTED" : lead?.crmStatus || lead?.status;
+
+// Only 3 badges are shown in the list:
 //   New Lead  |  In Progress  |  Closed
-// Backend values (SUBMITTED, CONTACTED, CONVERTED, ...) are mapped to these.
+// Each CRM status (CRM_LEAD_STATUSES) has a `stage` that picks the badge.
+const STAGE_COLORS = {
+  new: { label: "New Lead", bg: "#FDEBDD", text: "#EA580C" },
+  progress: { label: "In Progress", bg: "#DBEAFE", text: "#2563EB" },
+  closed: { label: "Closed", bg: "#DCFCE7", text: "#16A34A" },
+};
+
 const getStatusColors = (status) => {
+  const stage = getCrmStatusInfo(status)?.stage;
+  if (stage) return STAGE_COLORS[stage];
+
+  // Older / non-CRM values
   switch (String(status || "").toUpperCase()) {
     case "CLOSED":
-    case "CONVERTED":
     case "COMPLETED":
-    case "LOST":
     case "REJECTED":
-      return { label: "Closed", bg: "#DCFCE7", text: "#16A34A" };
+      return STAGE_COLORS.closed;
     case "IN_PROGRESS":
-    case "CONTACTED":
     case "SYNCED":
-      return { label: "In Progress", bg: "#DBEAFE", text: "#2563EB" };
+      return STAGE_COLORS.progress;
     default:
-      // SUBMITTED / NEW / empty / anything else
-      return { label: "New Lead", bg: "#FDEBDD", text: "#EA580C" };
+      // SUBMITTED / empty / anything else
+      return STAGE_COLORS.new;
   }
 };
 
@@ -358,6 +390,12 @@ export default function LeadTab() {
   const [callLogs, setCallLogs] = useState([]);
   const [pendingCall, setPendingCall] = useState(null);
   const [noteText, setNoteText] = useState("");
+  // CRM status picked in the Call Conversation popup
+  const [callStatus, setCallStatus] = useState("CONTACTED");
+
+  // Status dropdown on the details page
+  const [statusPickerOpen, setStatusPickerOpen] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   const pendingCallRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
@@ -398,6 +436,81 @@ export default function LeadTab() {
     };
   }, [selectedLead]);
 
+  // Tell the server this lead was called (PATCH /qrleads/:id) — once per call.
+  // NEW leads move to CONTACTED; leads further along keep their status.
+  // Status dropdown: confirm, then PATCH /qrleads/:id with the new crmStatus
+  const changeLeadStatus = (lead, newStatus) => {
+    setStatusPickerOpen(false);
+
+    const current = lead?.isConverted ? "CONVERTED" : lead?.crmStatus || "NEW";
+    if (!lead?._id || newStatus === current) return;
+
+    const label = prettyStatus(newStatus);
+
+    Alert.alert("Update status", `Change this lead to "${label}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Update",
+        onPress: async () => {
+          try {
+            setStatusUpdating(true);
+
+            const by = user?.name ? ` — ${user.name}` : "";
+            const updated = await updateLeadStatus(
+              lead,
+              newStatus,
+              `Status changed to ${label}${by}`
+            );
+
+            setLeads((prev) =>
+              prev.map((l) => (l?._id === updated._id ? { ...l, ...updated } : l))
+            );
+            setSelectedLead((prev) =>
+              prev?._id === updated._id ? { ...prev, ...updated } : prev
+            );
+          } catch (error) {
+            Alert.alert(
+              "Status not updated",
+              error?.message || "Please try again."
+            );
+          } finally {
+            setStatusUpdating(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const syncCallToServer = async (call, notes, crmStatus) => {
+    if (!call?.lead?._id) return;
+
+    const duration = formatDuration(call.durationSeconds);
+    const by = call.calledBy ? ` — ${call.calledBy}` : "";
+    const comment = notes
+      ? `${notes} (call ${duration}${by})`
+      : `Called customer from app (call ${duration}${by})`;
+
+    try {
+      const updated = await markLeadCalled(call.lead, comment, crmStatus);
+
+      // Show the new status / history right away
+      setLeads((prev) =>
+        prev.map((l) => (l?._id === updated._id ? { ...l, ...updated } : l))
+      );
+
+      if (selectedLeadRef.current?._id === updated._id) {
+        setSelectedLead((prev) => (prev ? { ...prev, ...updated } : prev));
+      }
+    } catch (error) {
+      console.warn("Lead call update failed:", error?.message || error);
+      Alert.alert(
+        "Lead not updated",
+        "The call was saved on this phone, but the lead could not be updated on the server. " +
+          (error?.message || "")
+      );
+    }
+  };
+
   // Detect the admin coming back to the app after the call
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -437,9 +550,14 @@ export default function LeadTab() {
           getLeadKey(selectedLeadRef.current) === pending.leadKey;
 
         // Ask for notes only if the same lead page is still open
+        // (the server is updated when the notes popup is saved/skipped).
+        // Otherwise update the server now, without notes.
         if (isSameLeadOpen) {
           setNoteText("");
+          setCallStatus(crmStatusAfterCall(finished.lead));
           setPendingCall(finished);
+        } else {
+          syncCallToServer(finished, "");
         }
 
         const list = await upsertCallLog(finished);
@@ -494,6 +612,12 @@ export default function LeadTab() {
       mobile: lead.mobile,
       calledBy: user?.name || "",
       calledById: user?.employeeNumber ? String(user.employeeNumber) : "",
+      // What the server update needs (id + current CRM status)
+      lead: {
+        _id: lead?._id,
+        crmStatus: lead?.crmStatus,
+        isConverted: lead?.isConverted,
+      },
       startedAt: new Date().toISOString(),
       endedAt: null,
       durationSeconds: null,
@@ -522,6 +646,9 @@ export default function LeadTab() {
     setPendingCall(null);
     setNoteText("");
 
+    // Notes go to the server as the call comment, with the chosen status
+    syncCallToServer(updated, updated.notes, callStatus);
+
     const list = await upsertCallLog(updated);
 
     if (
@@ -534,6 +661,9 @@ export default function LeadTab() {
 
   // Close the popup without notes (call time is already saved)
   const skipCallNotes = () => {
+    // Still record the call on the server, just without notes
+    if (pendingCall) syncCallToServer(pendingCall, "", callStatus);
+
     setPendingCall(null);
     setNoteText("");
   };
@@ -640,7 +770,7 @@ export default function LeadTab() {
   // =========================================================
   if (selectedLead) {
     const lead = selectedLead;
-    const statusColors = getStatusColors(lead?.status);
+    const statusColors = getStatusColors(getLeadStatus(lead));
     const products = Array.isArray(lead?.products) ? lead.products : [];
 
     return (
@@ -678,19 +808,99 @@ export default function LeadTab() {
 
             <Text style={styles.heroMobile}>{lead?.mobile || "-"}</Text>
 
+            {/* Current CRM status — same pill style as the CRM card */}
             <View
               style={[
-                styles.heroStatusBadge,
-                { backgroundColor: statusColors.bg },
+                styles.crmStatusPill,
+                { backgroundColor: statusColors.bg, marginTop: 8, marginBottom: 0 },
               ]}
             >
-              <Text
-                style={[styles.heroStatusText, { color: statusColors.text }]}
-              >
-                {statusColors.label}
+              <Text style={[styles.crmStatusPillText, { color: statusColors.text }]}>
+                {prettyStatus(
+                  lead?.isConverted ? "CONVERTED" : lead?.crmStatus || "NEW"
+                )}
               </Text>
             </View>
+
+            {/* Dropdown to change the CRM status */}
+            <Pressable
+              style={[
+                styles.heroStatusBadge,
+                styles.heroStatusDropdown,
+                { borderColor: statusColors.text },
+              ]}
+              onPress={() => setStatusPickerOpen(true)}
+              disabled={statusUpdating}
+              hitSlop={6}
+            >
+              {statusUpdating ? (
+                <ActivityIndicator size="small" color={statusColors.text} />
+              ) : (
+                <>
+                  <Text style={[styles.heroStatusText, { color: statusColors.text }]}>
+                    Change Status
+                  </Text>
+                  <MaterialIcons
+                    name="keyboard-arrow-down"
+                    size={18}
+                    color={statusColors.text}
+                  />
+                </>
+              )}
+            </Pressable>
           </View>
+
+          {/* STATUS PICKER */}
+          <Modal
+            visible={statusPickerOpen}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setStatusPickerOpen(false)}
+          >
+            <Pressable
+              style={styles.statusSheetOverlay}
+              onPress={() => setStatusPickerOpen(false)}
+            >
+              <Pressable style={styles.statusSheet} onPress={() => {}}>
+                <Text style={styles.statusSheetTitle}>Update CRM Status</Text>
+
+                <ScrollView style={{ maxHeight: 420 }}>
+                  {CRM_LEAD_STATUSES.map((s) => {
+                    const current =
+                      lead?.isConverted ? "CONVERTED" : lead?.crmStatus || "NEW";
+                    const isCurrent = current === s.value;
+                    const colors = getStatusColors(s.value);
+
+                    return (
+                      <Pressable
+                        key={s.value}
+                        style={[
+                          styles.statusSheetRow,
+                          isCurrent && { backgroundColor: colors.bg },
+                        ]}
+                        onPress={() => changeLeadStatus(lead, s.value)}
+                      >
+                        <View
+                          style={[styles.statusSheetDot, { backgroundColor: colors.text }]}
+                        />
+                        <Text
+                          style={[
+                            styles.statusSheetText,
+                            isCurrent && { color: colors.text, fontWeight: "800" },
+                          ]}
+                        >
+                          {s.label}
+                        </Text>
+                        {isCurrent && (
+                          <MaterialIcons name="check" size={20} color={colors.text} />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </Pressable>
+            </Pressable>
+          </Modal>
 
           {/* LEAD INFO */}
           <View style={styles.sectionCard}>
@@ -771,6 +981,88 @@ export default function LeadTab() {
             <Text style={styles.remarksText}>
               {lead?.remarks?.trim() ? lead.remarks : "No remarks added."}
             </Text>
+          </View>
+
+          {/* CRM STATUS & COMMENTS (from the server: crmStatus, mobileCall, crmHistory) */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>CRM Status & Comments</Text>
+
+              <View
+                style={[
+                  styles.crmStatusPill,
+                  { backgroundColor: getStatusColors(getLeadStatus(lead)).bg },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.crmStatusPillText,
+                    { color: getStatusColors(getLeadStatus(lead)).text },
+                  ]}
+                >
+                  {prettyStatus(lead?.isConverted ? "CONVERTED" : lead?.crmStatus || "NEW")}
+                </Text>
+              </View>
+            </View>
+
+            <DetailRow
+              icon={lead?.mobileCall?.called ? "phone-callback" : "phone-missed"}
+              label="Customer Called"
+              value={lead?.mobileCall?.called ? "Yes" : "Not yet"}
+            />
+
+            {!!lead?.crmUpdatedAt && (
+              <DetailRow
+                icon="update"
+                label="Last CRM Update"
+                value={formatDate(lead.crmUpdatedAt)}
+              />
+            )}
+
+            {!!lead?.crmAgentName && (
+              <DetailRow
+                icon="support-agent"
+                label="CRM Agent"
+                value={lead.crmAgentName}
+              />
+            )}
+
+            {/* Comment history, newest first */}
+            {Array.isArray(lead?.crmHistory) && lead.crmHistory.length > 0 ? (
+              [...lead.crmHistory]
+                .sort(
+                  (a, b) =>
+                    new Date(b?.updatedAt || 0) - new Date(a?.updatedAt || 0)
+                )
+                .map((entry, index) => (
+                  <View key={`${entry?.updatedAt}-${index}`} style={styles.crmHistoryItem}>
+                    <View style={styles.crmHistoryDot} />
+
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.crmHistoryHeader}>
+                        <Text style={styles.crmHistoryStatus}>
+                          {prettyStatus(entry?.crmStatus)}
+                        </Text>
+                        <Text style={styles.crmHistoryDate}>
+                          {formatDate(entry?.updatedAt)}
+                        </Text>
+                      </View>
+
+                      {!!entry?.comment && (
+                        <Text style={styles.crmHistoryComment}>{entry.comment}</Text>
+                      )}
+
+                      {!!entry?.agentName && (
+                        <Text style={styles.crmHistoryAgent}>By {entry.agentName}</Text>
+                      )}
+                    </View>
+                  </View>
+                ))
+            ) : (
+              <Text style={styles.noDataText}>
+                No comments yet. Call the customer to add one.
+              </Text>
+            )}
           </View>
 
           {/* CALL HISTORY */}
@@ -883,6 +1175,40 @@ export default function LeadTab() {
                 </Text>
               )}
 
+              {/* CRM status after the call */}
+              <Text style={styles.statusPickerLabel}>Call outcome</Text>
+              <View style={styles.statusPicker}>
+                {CALL_OUTCOME_STATUSES.map((s) => {
+                  const selected = callStatus === s.value;
+                  const colors = getStatusColors(s.value);
+                  return (
+                    <Pressable
+                      key={s.value}
+                      onPress={() => setCallStatus(s.value)}
+                      style={[
+                        styles.statusChip,
+                        selected && {
+                          backgroundColor: colors.bg,
+                          borderColor: colors.text,
+                        },
+                      ]}
+                    >
+                      {selected && (
+                        <MaterialIcons name="check" size={14} color={colors.text} />
+                      )}
+                      <Text
+                        style={[
+                          styles.statusChipText,
+                          selected && { color: colors.text, fontWeight: "800" },
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               <TextInput
                 style={styles.modalInput}
                 value={noteText}
@@ -905,7 +1231,7 @@ export default function LeadTab() {
                   style={styles.modalSaveButton}
                   onPress={saveCallNotes}
                 >
-                  <Text style={styles.modalSaveText}>Save Notes</Text>
+                  <Text style={styles.modalSaveText}>Save</Text>
                 </Pressable>
               </View>
             </View>
@@ -919,7 +1245,7 @@ export default function LeadTab() {
   // LEAD CARD
   // =========================================================
   const renderLead = ({ item }) => {
-    const statusColors = getStatusColors(item?.status);
+    const statusColors = getStatusColors(getLeadStatus(item));
     const productCount = item?.products?.length || 0;
 
     return (
@@ -939,11 +1265,20 @@ export default function LeadTab() {
               {item?.customerName || "Unknown"}
             </Text>
 
+            {/* Exact CRM status, same as the details page */}
             <View
-              style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusColors.bg, maxWidth: "55%" },
+              ]}
             >
-              <Text style={[styles.statusText, { color: statusColors.text }]}>
-                {statusColors.label}
+              <Text
+                style={[styles.statusText, { color: statusColors.text }]}
+                numberOfLines={1}
+              >
+                {prettyStatus(
+                  item?.isConverted ? "CONVERTED" : item?.crmStatus || "NEW"
+                )}
               </Text>
             </View>
           </View>
@@ -974,7 +1309,12 @@ export default function LeadTab() {
         {/* QUICK CALL */}
         <Pressable
           style={styles.callIconButton}
-          onPress={() => callCustomer(item?.mobile)}
+          onPress={() => {
+            // Same flow as the details page, so the call is logged and the
+            // lead is marked as called on the server
+            setSelectedLead(item);
+            handleCallPress(item);
+          }}
           hitSlop={8}
         >
           <MaterialIcons name="call" size={20} color="#fff" />
@@ -1470,6 +1810,64 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
 
+  // "Change Status" dropdown under the status pill
+  heroStatusDropdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    minHeight: 28,
+    minWidth: 120,
+    justifyContent: "center",
+    paddingLeft: 12,
+    paddingRight: 8,
+    borderWidth: 1,
+    backgroundColor: "#fff",
+  },
+
+  statusSheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    padding: 24,
+  },
+
+  statusSheet: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+  },
+
+  statusSheetTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#1F2937",
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+
+  statusSheetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+
+  statusSheetDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+
+  statusSheetText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+
   heroStatusText: {
     fontSize: 11,
     fontWeight: "700",
@@ -1609,6 +2007,67 @@ const styles = StyleSheet.create({
   },
 
   // ---------------- CALL HISTORY ----------------
+  crmStatusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+
+  crmStatusPillText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  crmHistoryItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+  },
+
+  crmHistoryDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EA580C",
+    marginTop: 5,
+    marginRight: 10,
+  },
+
+  crmHistoryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  crmHistoryStatus: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#1F2937",
+  },
+
+  crmHistoryDate: {
+    fontSize: 11,
+    color: "#777",
+  },
+
+  crmHistoryComment: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#374151",
+  },
+
+  crmHistoryAgent: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+
   callLogItem: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1700,6 +2159,39 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: "#9CA3AF",
+  },
+
+  statusPickerLabel: {
+    marginTop: 12,
+    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#374151",
+  },
+
+  statusPicker: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 4,
+  },
+
+  statusChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+  },
+
+  statusChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4B5563",
   },
 
   modalInput: {
