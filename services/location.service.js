@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { Alert, AppState } from 'react-native';
-import { MAX_DISTANCE, OFFICE_LOCATION, calculateDistance } from '../utils/location';
+import { MOCK_LOCATION_MESSAGE, checkStoreLocation, isMockLocation } from '../utils/location';
 import attendanceService from './attendance.service';
 import eventEmitter from './eventEmitter';
 import { BACKGROUND_LOCATION_TASK } from './geofence.task';
@@ -25,6 +25,8 @@ class LocationService {
         this.lastStaleRecoveryTime = 0;
         this.wasInsideOffice = null;
         this.midnightTimeout = null;
+        this.lastMockAlertTime = 0;
+        this.MOCK_ALERT_COOLDOWN = 5 * 60_000;
     }
 
     // ── ✅ NEW: Persist wasInside across app restarts ─────────────────────────
@@ -80,8 +82,8 @@ class LocationService {
 
             await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
                 accuracy: Location.Accuracy.Balanced,
-                timeInterval: 3000,
-                distanceInterval: 3,
+                timeInterval: 10000,
+                distanceInterval: 8,
                 foregroundService: {
                     notificationTitle: 'Attendance Tracking',
                     notificationBody: 'Tracking your location for auto check-in/out',
@@ -168,23 +170,29 @@ class LocationService {
     // ── Foreground location handler ──────────────────────────────────────────
 
     async handleLocationUpdate(location) {
-        const distance = calculateDistance(
+        // ── Mock-location guard: no check-in, no check-out, state untouched ──
+        if (isMockLocation(location)) {
+            await this._handleMockLocation(location);
+            return;
+        }
+
+        // Inside = within MAX_DISTANCE of ANY configured store
+        const { allowed: isInsideOffice, store, distance } = checkStoreLocation(
             location.coords.latitude,
-            location.coords.longitude,
-            OFFICE_LOCATION.latitude,
-            OFFICE_LOCATION.longitude
+            location.coords.longitude
         );
-        const isInsideOffice = distance <= MAX_DISTANCE;
 
         eventEmitter.emit('LOCATION_UPDATED', {
-            distance: Math.round(distance),
+            distance,
             isInside: isInsideOffice,
+            isMocked: false,
+            storeName: store?.name ?? null,
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
             timestamp: new Date().toISOString(),
         });
 
-        await this._saveLastLocation(location.coords, distance, isInsideOffice);
+        await this._saveLastLocation(location.coords, distance, isInsideOffice, store?.name);
 
         if (this.isProcessing) return;
 
@@ -208,7 +216,7 @@ class LocationService {
             const isCheckedIn = currentStatus === 'CHECKED_IN';
 
             console.log(
-                `[LocationService] dist=${Math.round(distance)}m inside=${isInsideOffice} ` +
+                `[LocationService] nearest=${store?.name} dist=${distance}m inside=${isInsideOffice} ` +
                 `checkedIn=${isCheckedIn} wasInside=${this.wasInsideOffice}`
             );
 
@@ -291,6 +299,41 @@ class LocationService {
             }
         } finally {
             this.isProcessing = false;
+        }
+    }
+
+    // ── Mock location ────────────────────────────────────────────────────────
+
+    async _handleMockLocation(location) {
+        console.warn('[LocationService] Mock location detected → blocking attendance action');
+
+        eventEmitter.emit('LOCATION_UPDATED', {
+            distance: null,
+            isInside: false,
+            isMocked: true,
+            storeName: null,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            timestamp: new Date().toISOString(),
+        });
+
+        await AsyncStorage.setItem('lastLocation', JSON.stringify({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            distance: null,
+            isInside: false,
+            isMocked: true,
+            timestamp: new Date().toISOString(),
+        }));
+
+        const now = Date.now();
+        if (now - this.lastMockAlertTime < this.MOCK_ALERT_COOLDOWN) return;
+        this.lastMockAlertTime = now;
+
+        if (AppState.currentState === 'active') {
+            Alert.alert('Fake Location Detected', MOCK_LOCATION_MESSAGE, [{ text: 'OK' }]);
+        } else {
+            await notificationService.notifyMockLocation(MOCK_LOCATION_MESSAGE);
         }
     }
 
@@ -438,6 +481,7 @@ class LocationService {
         this.lastCheckOutTime = 0;
         this.lastStaleRecoveryTime = 0;
         this.wasInsideOffice = null;
+        this.lastMockAlertTime = 0;
     }
 
     // ✅ CHANGED: now actually unregisters the background task AND clears
@@ -453,6 +497,7 @@ class LocationService {
                 'bgTaskCooldowns',
                 'lastAutoAction',
                 'lastLocation',
+                'bgMockNotifiedAt',
             ]);
         } catch (e) {
             console.error('[LocationService] Failed clearing bg keys:', e);
@@ -485,9 +530,23 @@ class LocationService {
             const status = await attendanceService.getCurrentStatus(employeeNumber);
             if (status !== 'CHECKED_IN') return;
 
-            const location = await this.getCurrentLocation();
-            const lat = location?.latitude ?? OFFICE_LOCATION.latitude;
-            const lng = location?.longitude ?? OFFICE_LOCATION.longitude;
+            // Fall back to the last known fix if a fresh one isn't available
+            let location = await this.getCurrentLocation();
+            if (!location) {
+                const raw = await AsyncStorage.getItem('lastLocation');
+                location = raw ? { ...JSON.parse(raw), isInside: false } : null;
+            }
+            if (!location) {
+                console.log('[LocationService] No location for midnight rollover — skipping');
+                return;
+            }
+            // Never act on a fake fix; stale-session recovery will close it later
+            if (location.isMocked) {
+                console.warn('[LocationService] Mock location at midnight rollover — skipping');
+                return;
+            }
+            const lat = location.latitude;
+            const lng = location.longitude;
 
             console.log("[LocationService] Closing yesterday's session");
             await attendanceService.checkOut(employeeNumber, lat, lng);
@@ -513,12 +572,13 @@ class LocationService {
 
     // ── Utilities ────────────────────────────────────────────────────────────
 
-    async _saveLastLocation(coords, distance, isInside) {
+    async _saveLastLocation(coords, distance, isInside, storeName = null) {
         await AsyncStorage.setItem('lastLocation', JSON.stringify({
             latitude: coords.latitude,
             longitude: coords.longitude,
-            distance: Math.round(distance),
+            distance,
             isInside,
+            storeName,
             timestamp: new Date().toISOString(),
         }));
     }
@@ -532,18 +592,20 @@ class LocationService {
                 accuracy: Location.Accuracy.Balanced,
             });
 
-            const distance = calculateDistance(
+            const isMocked = isMockLocation(location);
+            const { allowed, store, distance } = checkStoreLocation(
                 location.coords.latitude,
-                location.coords.longitude,
-                OFFICE_LOCATION.latitude,
-                OFFICE_LOCATION.longitude
+                location.coords.longitude
             );
 
+            // A mocked fix is never treated as "inside" a store
             const result = {
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude,
-                distance: Math.round(distance),
-                isInside: distance <= MAX_DISTANCE,
+                distance: isMocked ? null : distance,
+                isInside: isMocked ? false : allowed,
+                isMocked,
+                storeName: isMocked ? null : (store?.name ?? null),
                 timestamp: new Date().toISOString(),
             };
 

@@ -19,7 +19,110 @@ function formatCurrency(value) {
     style: "currency",
     currency: "INR",
     minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value || 0);
+}
+
+// Achieved as a % of target (0 when there is no target)
+function percentOf(achieved, target) {
+  if (!target) return 0;
+  return Math.round((achieved / target) * 100);
+}
+
+// Green when target met, orange when close, red when far behind
+function progressColor(pct) {
+  if (pct >= 100) return "#1A8F4C";
+  if (pct >= 75) return "#D86A16";
+  return "#C0392B";
+}
+
+// "2026-10-15" -> "15 Oct, Thu"
+function formatDay(isoDate) {
+  if (!isoDate) return "";
+  const d = new Date(`${isoDate}T00:00:00`);
+  if (isNaN(d)) return isoDate;
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    weekday: "short",
+  });
+}
+
+const EMPTY_DASHBOARD = {
+  monthlyTarget: 0,
+  monthlyAchieved: 0,
+  mtdTarget: 0,
+  todayDate: null,
+  todayTarget: 0,
+  todayAchieved: 0,
+  todayWeekOff: false,
+  yesterdayDate: null,
+  yesterdayTarget: 0,
+  yesterdayAchieved: 0,
+  yesterdayWeekOff: false,
+  monthlyData: [],
+};
+
+function ProgressBar({ pct }) {
+  return (
+    <View style={styles.progressTrack}>
+      <View
+        style={[
+          styles.progressFill,
+          {
+            width: `${Math.min(pct, 100)}%`,
+            backgroundColor: progressColor(pct),
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+// Target vs achieved for a single day (today / yesterday)
+function DayCard({ title, date, target, achieved, weekOff, icon, iconBg, iconColor }) {
+  const pct = percentOf(achieved, target);
+
+  return (
+    <View style={styles.bigCard}>
+      <View style={styles.bigCardHeader}>
+        <View style={styles.dayCardTitleRow}>
+          <View style={[styles.metricIconContainer, { backgroundColor: iconBg, marginBottom: 0 }]}>
+            <Ionicons name={icon} size={20} color={iconColor} />
+          </View>
+          <View style={{ marginLeft: 10 }}>
+            <Text style={styles.bigCardTitle}>{title}</Text>
+            {!!date && <Text style={styles.dateText}>{formatDay(date)}</Text>}
+          </View>
+        </View>
+
+        {weekOff ? (
+          <View style={styles.weekOffBadge}>
+            <Text style={styles.weekOffBadgeText}>WEEK OFF</Text>
+          </View>
+        ) : (
+          <Text style={[styles.pctBadge, { color: progressColor(pct) }]}>
+            {pct}%
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.bigCardRow}>
+        <View>
+          <Text style={styles.metricLabel}>Achieved</Text>
+          <Text style={styles.metricValue}>{formatCurrency(achieved)}</Text>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={styles.metricLabel}>Target</Text>
+          <Text style={styles.metricValue}>
+            {weekOff ? "—" : formatCurrency(target)}
+          </Text>
+        </View>
+      </View>
+
+      {!weekOff && <ProgressBar pct={pct} />}
+    </View>
+  );
 }
 
 export default function Home() {
@@ -29,12 +132,7 @@ export default function Home() {
   const [employeeNumber, setEmployeeNumber] = useState(null);
   const [userName, setUserName] = useState("Employee");
 
-  const [data, setData] = useState({
-    monthlyTarget: 0,
-    monthlyAchieved: 0,
-    yesterdayTarget: 0,
-    yesterdayAchieved: 0,
-  });
+  const [data, setData] = useState(EMPTY_DASHBOARD);
 
   useEffect(() => {
     loadDashboard();
@@ -49,11 +147,15 @@ export default function Home() {
         console.log("User Data:", parsedData);
 
         // Try different possible field names for the user's name
+        const fullFromParts = [parsedData.firstName, parsedData.lastName]
+          .filter(Boolean)
+          .join(" ");
+
         const name = parsedData.name ||
           parsedData.fullName ||
           parsedData.displayName ||
           parsedData.employeeName ||
-          parsedData.firstName + " " + parsedData.lastName ||
+          fullFromParts ||
           "Employee";
 
         setUserName(name);
@@ -79,19 +181,9 @@ export default function Home() {
         return;
       }
 
-      const response = await dashboardService.getEmployeeDashboard();
-      console.log("Dashboard Response:", response);
-
-      if (response && response.success) {
-        setData(response.data || {
-          monthlyTarget: 0,
-          monthlyAchieved: 0,
-          yesterdayTarget: 0,
-          yesterdayAchieved: 0,
-        });
-      } else {
-        setError(response?.message || "Failed to load dashboard data");
-      }
+      // Service returns normalized data, or throws with the API's message
+      const dashboard = await dashboardService.getEmployeeDashboard();
+      setData(dashboard);
     } catch (error) {
       console.error("Dashboard Error:", error);
       setError(error.message || "Failed to load dashboard. Please try again.");
@@ -142,6 +234,11 @@ export default function Home() {
     );
   }
 
+  const monthlyPct = percentOf(data.monthlyAchieved, data.monthlyTarget);
+  const monthlyRemaining = data.monthlyTarget - data.monthlyAchieved;
+  const mtdPct = percentOf(data.monthlyAchieved, data.mtdTarget);
+  const mtdGap = data.monthlyAchieved - data.mtdTarget;
+
   return (
     <View style={styles.container}>
       {/* Header stays fixed while the page scrolls */}
@@ -151,7 +248,7 @@ export default function Home() {
 
         <View style={styles.profileRow}>
           <View style={styles.menuBox}>
-            <AppDrawer role="Store Staff" iconColor="#fff" />
+            <AppDrawer section="staff" role="Store Staff" iconColor="#fff" />
           </View>
 
           <View style={{ flex: 1 }}>
@@ -180,53 +277,168 @@ export default function Home() {
         }
       >
 
-      {/* DASHBOARD CARDS */}
       <View style={styles.metricsSection}>
-        {/* Row 1 */}
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#FFF5EC' }]}>
-              <Ionicons name="flag-outline" size={20} color="#D86A16" />
-            </View>
-            <Text style={styles.metricLabel}>Monthly Target</Text>
-            <Text style={styles.metricValue}>
-              {formatCurrency(data.monthlyTarget)}
+        {/* TODAY */}
+        <DayCard
+          title="Today"
+          date={data.todayDate}
+          target={data.todayTarget}
+          achieved={data.todayAchieved}
+          weekOff={data.todayWeekOff}
+          iconBg="#ECF3FA"
+          iconColor="#4A6FA5"
+          icon="today-outline"
+        />
+
+        {/* YESTERDAY */}
+        <DayCard
+          title="Yesterday"
+          date={data.yesterdayDate}
+          target={data.yesterdayTarget}
+          achieved={data.yesterdayAchieved}
+          weekOff={data.yesterdayWeekOff}
+          iconBg="#FFF5EC"
+          iconColor="#D86A16"
+          icon="calendar-outline"
+        />
+
+        {/* MTD (month to date, including today) */}
+        <View style={styles.bigCard}>
+          <View style={styles.bigCardHeader}>
+            <Text style={styles.bigCardTitle}>Month to Date</Text>
+            <Text style={[styles.pctBadge, { color: progressColor(mtdPct) }]}>
+              {mtdPct}%
             </Text>
           </View>
 
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#ECF9F0' }]}>
-              <Ionicons name="trophy-outline" size={20} color="#1A5C3A" />
+          <View style={styles.bigCardRow}>
+            <View>
+              <Text style={styles.metricLabel}>MTD Achieved</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(data.monthlyAchieved)}
+              </Text>
             </View>
-            <Text style={styles.metricLabel}>Monthly Achieved</Text>
-            <Text style={styles.metricValue}>
-              {formatCurrency(data.monthlyAchieved)}
-            </Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.metricLabel}>MTD Target</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(data.mtdTarget)}
+              </Text>
+            </View>
           </View>
+
+          <ProgressBar pct={mtdPct} />
+
+          <Text
+            style={[
+              styles.helperText,
+              { color: mtdGap >= 0 ? "#1A8F4C" : "#C0392B" },
+            ]}
+          >
+            {mtdGap >= 0
+              ? `Ahead by ${formatCurrency(mtdGap)}`
+              : `Behind by ${formatCurrency(-mtdGap)}`}
+          </Text>
         </View>
 
-        {/* Row 2 */}
-        <View style={styles.metricsRow}>
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#ECF3FA' }]}>
-              <Ionicons name="calendar-outline" size={20} color="#4A6FA5" />
-            </View>
-            <Text style={styles.metricLabel}>Yesterday Target</Text>
-            <Text style={styles.metricValue}>
-              {formatCurrency(data.yesterdayTarget)}
+        {/* MONTHLY PROGRESS */}
+        <View style={styles.bigCard}>
+          <View style={styles.bigCardHeader}>
+            <Text style={styles.bigCardTitle}>Monthly Progress</Text>
+            <Text style={[styles.pctBadge, { color: progressColor(monthlyPct) }]}>
+              {monthlyPct}%
             </Text>
           </View>
 
-          <View style={styles.metricCard}>
-            <View style={[styles.metricIconContainer, { backgroundColor: '#FFF5EC' }]}>
-              <Ionicons name="checkmark-circle-outline" size={20} color="#D86A16" />
+          <View style={styles.bigCardRow}>
+            <View>
+              <Text style={styles.metricLabel}>Achieved</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(data.monthlyAchieved)}
+              </Text>
             </View>
-            <Text style={styles.metricLabel}>Yesterday Achieved</Text>
-            <Text style={styles.metricValue}>
-              {formatCurrency(data.yesterdayAchieved)}
-            </Text>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.metricLabel}>Target</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(data.monthlyTarget)}
+              </Text>
+            </View>
           </View>
+
+          <ProgressBar pct={monthlyPct} />
+
+          <Text style={styles.helperText}>
+            {monthlyRemaining > 0
+              ? `${formatCurrency(monthlyRemaining)} left to reach the monthly target`
+              : "Monthly target achieved 🎉"}
+          </Text>
         </View>
+
+        {/* DAILY BREAKDOWN */}
+        {data.monthlyData.length > 0 && (
+          <View style={styles.bigCard}>
+            <Text style={[styles.bigCardTitle, { marginBottom: 8 }]}>
+              Daily Breakdown
+            </Text>
+
+            <View style={[styles.dayRow, styles.dayHeaderRow]}>
+              <Text style={[styles.dayHeaderText, styles.colDate]}>Date</Text>
+              <Text style={[styles.dayHeaderText, styles.colNum]}>Target</Text>
+              <Text style={[styles.dayHeaderText, styles.colNum]}>Achieved</Text>
+              <Text style={[styles.dayHeaderText, styles.colPct]}>%</Text>
+            </View>
+
+            {data.monthlyData.map((day) => {
+              const isToday = day.date === data.todayDate;
+              const isFuture = !!data.todayDate && day.date > data.todayDate;
+              const pct = percentOf(day.achieved, day.target);
+
+              return (
+                <View
+                  key={day.date}
+                  style={[
+                    styles.dayRow,
+                    isToday && styles.dayRowToday,
+                    isFuture && styles.dayRowFuture,
+                  ]}
+                >
+                  <Text style={[styles.dayText, styles.colDate]}>
+                    {formatDay(day.date)}
+                  </Text>
+
+                  {day.isWeekOff ? (
+                    <>
+                      <Text style={[styles.weekOffText, styles.colNum]}>
+                        Week off
+                      </Text>
+                      <Text style={[styles.dayText, styles.colNum]}>
+                        {day.achieved ? formatCurrency(day.achieved) : "—"}
+                      </Text>
+                      <Text style={[styles.dayText, styles.colPct]}>—</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.dayText, styles.colNum]}>
+                        {formatCurrency(day.target)}
+                      </Text>
+                      <Text style={[styles.dayText, styles.colNum]}>
+                        {isFuture ? "—" : formatCurrency(day.achieved)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dayText,
+                          styles.colPct,
+                          !isFuture && { color: progressColor(pct), fontWeight: "700" },
+                        ]}
+                      >
+                        {isFuture ? "—" : `${pct}%`}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       <View style={{ height: 30 }} />
@@ -353,22 +565,108 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
     marginTop: 14,
   },
-  metricsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 10,
-  },
-  metricCard: {
-    flex: 1,
+  bigCard: {
     backgroundColor: "#fff",
     borderRadius: 14,
-    padding: 12,
+    padding: 14,
+    marginBottom: 10,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
+  bigCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  bigCardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F2D52",
+  },
+  bigCardRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  pctBadge: {
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  helperText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600",
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EEF1F5",
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  dayCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  dateText: {
+    fontSize: 12,
+    color: "#777",
+    marginTop: 1,
+  },
+  weekOffBadge: {
+    backgroundColor: "#EEF1F5",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  weekOffBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#4A6FA5",
+  },
+  dayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 7,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  dayHeaderRow: {
+    borderBottomColor: "#E5E7EB",
+  },
+  dayRowToday: {
+    backgroundColor: "#FFF5EC",
+    borderRadius: 8,
+  },
+  dayRowFuture: {
+    opacity: 0.5,
+  },
+  dayHeaderText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#666",
+  },
+  dayText: {
+    fontSize: 12,
+    color: "#222",
+  },
+  weekOffText: {
+    fontSize: 12,
+    color: "#4A6FA5",
+    fontWeight: "600",
+  },
+  colDate: { flex: 1.3 },
+  colNum: { flex: 1.2, textAlign: "right" },
+  colPct: { flex: 0.7, textAlign: "right" },
   metricIconContainer: {
     width: 36,
     height: 36,

@@ -1,13 +1,14 @@
 // services/geofence.task.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as TaskManager from 'expo-task-manager';
-import { MAX_DISTANCE, OFFICE_LOCATION, calculateDistance } from '../utils/location';
+import { MOCK_LOCATION_MESSAGE, checkStoreLocation, isMockLocation } from '../utils/location';
 import attendanceService from './attendance.service';
 import notificationService from './notification.service';
 
 export const BACKGROUND_LOCATION_TASK = 'BACKGROUND_LOCATION_TASK';
 
 const BG_COOLDOWN_MS = 60_000; // 60s between attempts
+const MOCK_NOTIFY_COOLDOWN_MS = 5 * 60_000; // don't spam the mock-location warning
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,15 +95,34 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     }
     const { employeeNumber } = user;
 
+    // ── Mock-location guard: no check-in, no check-out, state untouched ──────
+    if (isMockLocation(location)) {
+        console.warn('[BgTask] Mock location detected → blocking attendance action');
+        try {
+            await AsyncStorage.setItem('lastLocation', JSON.stringify({
+                latitude, longitude,
+                distance: null,
+                isInside: false,
+                isMocked: true,
+                timestamp: new Date().toISOString(),
+            }));
+            const lastNotified = Number(await AsyncStorage.getItem('bgMockNotifiedAt')) || 0;
+            if (Date.now() - lastNotified > MOCK_NOTIFY_COOLDOWN_MS) {
+                await notificationService.notifyMockLocation(MOCK_LOCATION_MESSAGE);
+                await AsyncStorage.setItem('bgMockNotifiedAt', String(Date.now()));
+            }
+        } catch (e) {
+            console.error('[BgTask] Mock-location handling error:', e);
+        }
+        return;
+    }
+
     // ── Geofence check ────────────────────────────────────────────────────────
-    const distance = calculateDistance(
-        latitude, longitude,
-        OFFICE_LOCATION.latitude, OFFICE_LOCATION.longitude
-    );
-    const isInside = distance <= MAX_DISTANCE;
+    // Inside = within MAX_DISTANCE of ANY configured store
+    const { allowed: isInside, store, distance } = checkStoreLocation(latitude, longitude);
     const now = Date.now();
 
-    console.log(`[BgTask] dist=${Math.round(distance)}m inside=${isInside}`);
+    console.log(`[BgTask] nearest=${store?.name} dist=${distance}m inside=${isInside}`);
 
     // ── Read persisted state ──────────────────────────────────────────────────
     const cooldowns = await getLastActionTimes();

@@ -12,7 +12,7 @@ import {
     useWindowDimensions,
 } from "react-native";
 import AppDrawer from "../../components/AppDrawer";
-import fitterService from "../../services/fitter.service";
+import fitterService, { isFittingCompleted } from "../../services/fitter.service";
 
 // =============================================================
 // RESPONSIVE SCALING HELPERS
@@ -68,6 +68,7 @@ export default function FitterDashboard() {
 
   // Same status grouping used by website
   const pendingStatuses = [
+    "FITTING_AGENT_ASSIGNED",
     "ASSIGNED_TO_FITTER",
     "VISIT_SCHEDULED",
     "FITTING_IN_PROGRESS",
@@ -94,7 +95,7 @@ export default function FitterDashboard() {
   const openTasks = tasks.filter(
     (task) =>
       task.isFitting === true &&
-      task.isFittingDone === false
+      !isFittingCompleted(task)
   );
 
   const today = new Date();
@@ -161,7 +162,7 @@ export default function FitterDashboard() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.menuBox}>
-          <AppDrawer role="Fitter" iconColor="#fff" />
+          <AppDrawer section="fitter" role="Fitter" iconColor="#fff" />
         </View>
 
         <View style={{ flex: 1, marginLeft: 14 }}>

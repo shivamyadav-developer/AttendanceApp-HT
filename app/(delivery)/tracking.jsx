@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import Marker from "@/components/StaticMarker";
 import eventEmitter from "@/services/eventEmitter";
 import { getRoute } from "@/services/route.service";
 import {

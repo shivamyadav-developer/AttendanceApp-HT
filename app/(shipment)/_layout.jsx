@@ -13,6 +13,9 @@ export default function ShipmentLayout() {
           paddingBottom: 8,
           paddingTop: 5,
         },
+        tabBarLabelStyle: {
+          fontWeight: "700",
+        },
       }}
     >
       <Tabs.Screen

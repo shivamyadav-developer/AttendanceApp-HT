@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { View, Text, StyleSheet, StatusBar } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import Marker from "@/components/StaticMarker";
 import { MaterialIcons } from "@expo/vector-icons";
 import eventEmitter from "@/services/eventEmitter";
 import { getRoute } from "@/services/route.service";

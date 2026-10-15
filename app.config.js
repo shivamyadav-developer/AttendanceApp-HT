@@ -108,6 +108,14 @@ export default {
                     android: {
                         enableMinifyInReleaseBuilds: true,
                         enableShrinkResourcesInReleaseBuilds: true,
+                        // The headless app loader is only looked up by name from the
+                        // manifest, so R8 strips it and background tasks crash with an
+                        // NPE in TaskService.executeTask when the app isn't running.
+                        extraProguardRules: [
+                            "-keep class expo.modules.adapters.react.apploader.** { *; }",
+                            "-keep class expo.modules.apploader.** { *; }",
+                            "-keep class expo.modules.taskManager.** { *; }",
+                        ].join("\n"),
                     },
                 },
             ],

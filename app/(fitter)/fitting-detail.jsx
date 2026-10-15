@@ -20,7 +20,7 @@ import {
     View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import fitterService from "../../services/fitter.service";
+import fitterService, { isFittingCompleted } from "../../services/fitter.service";
 
 /* -----------------------------------------
    Responsive scaling helpers
@@ -623,9 +623,7 @@ export default function FittingDetail() {
     ticket.fitting?.scheduledTimeSlot ||
     "Not scheduled";
 
-  const isCompleted =
-    ticket.isFittingDone === true ||
-    status === "FITTING_DONE";
+  const isCompleted = isFittingCompleted(ticket);
 
   const isInProgress =
     status === "FITTING_IN_PROGRESS";

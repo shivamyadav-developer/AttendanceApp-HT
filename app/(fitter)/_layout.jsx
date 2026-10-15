@@ -1,50 +1,68 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { Text } from "react-native";
 
 export default function FitterLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#0F7A5C",
+        tabBarActiveTintColor: "#D96A17",
         tabBarInactiveTintColor: "#9CA3AF",
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "600",
+        // No side padding so 6 tabs get the full width
+        tabBarItemStyle: {
+          paddingHorizontal: 0,
         },
+        // Bold, single-line label that shrinks slightly if it doesn't fit
+        tabBarLabel: ({ color, children }) => (
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            allowFontScaling={false}
+            style={{
+              color,
+              fontSize: 10,
+              fontWeight: "700",
+              marginTop: 2,
+            }}
+          >
+            {children}
+          </Text>
+        ),
       }}
     >
 
-    {/* Fitter Dashboard */}
+      {/* Fitter Dashboard */}
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: "Dashboard",
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="dashboard"
+            <Ionicons
+              name="home"
               color={color}
               size={size}
             />
           ),
         }}
       />
+
 
       {/* Existing Attendance */}
       <Tabs.Screen
         name="attendance"
         options={{
-          title: "Attendance",
+          title: "Attend",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="how-to-reg"
+            <Ionicons
+              name="finger-print-outline"
               color={color}
               size={size}
             />
           ),
         }}
       />
-  
 
       {/* Pending Fitting Jobs */}
       <Tabs.Screen
@@ -52,8 +70,8 @@ export default function FitterLayout() {
         options={{
           title: "Fittings",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="build"
+            <MaterialCommunityIcons
+              name="toolbox"
               color={color}
               size={size}
             />
@@ -67,8 +85,8 @@ export default function FitterLayout() {
         options={{
           title: "Completed",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="check-circle"
+            <MaterialCommunityIcons
+              name="clipboard-check"
               color={color}
               size={size}
             />
@@ -82,8 +100,8 @@ export default function FitterLayout() {
         options={{
           title: "Tracking",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="assignment"
+            <MaterialCommunityIcons
+              name="map-marker-radius"
               color={color}
               size={size}
             />
@@ -107,8 +125,8 @@ export default function FitterLayout() {
         options={{
           title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <MaterialIcons
-              name="person"
+            <Ionicons
+              name="person-circle-outline"
               color={color}
               size={size}
             />

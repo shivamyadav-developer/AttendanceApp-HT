@@ -1,17 +1,42 @@
 import Constants from "expo-constants";
-import { router } from "expo-router";
-import { useState } from "react";
+import * as Notifications from "expo-notifications";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Linking, Switch } from "react-native";
 
 import InfoPage, { InfoCard, InfoRow } from "../../components/InfoPage";
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  getNotificationSettings,
+  updateNotificationSettings,
+} from "../../services/notificationSettings";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
 export default function Settings() {
-  // TODO: dummy settings - kept only on this screen, not saved anywhere yet
-  const [notifications, setNotifications] = useState(true);
-  const [attendanceReminder, setAttendanceReminder] = useState(true);
-  const [sound, setSound] = useState(false);
+  // Saved on the device; notification.service reads these before every alert
+  const [settings, setSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
+  const [osBlocked, setOsBlocked] = useState(false);
+
+  useEffect(() => {
+    getNotificationSettings().then(setSettings);
+  }, []);
+
+  // Re-check phone-level permission whenever the user comes back to this screen
+  // (e.g. after allowing notifications in the phone's settings)
+  useFocusEffect(
+    useCallback(() => {
+      Notifications.getPermissionsAsync()
+        .then(({ status }) => setOsBlocked(status !== "granted"))
+        .catch(() => {});
+    }, [])
+  );
+
+  const changeSetting = (key) => async (value) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    const saved = await updateNotificationSettings({ [key]: value });
+    setSettings(saved);
+  };
 
   const toggle = (value, onChange) => (
     <Switch
@@ -22,28 +47,21 @@ export default function Settings() {
     />
   );
 
+  const pushDescription = osBlocked
+    ? "Blocked in phone settings — tap to allow"
+    : settings.pushEnabled
+      ? "Auto check-in and check-out alerts"
+      : "Off — you won't get check-in/out alerts";
+
   return (
     <InfoPage title="Settings" subtitle="Manage your app preferences">
       <InfoCard title="Notifications">
         <InfoRow
-          icon="notifications-none"
+          icon={settings.pushEnabled ? "notifications-none" : "notifications-off"}
           label="Push Notifications"
-          value="Updates about tasks and targets"
-          right={toggle(notifications, setNotifications)}
-        />
-
-        <InfoRow
-          icon="alarm"
-          label="Attendance Reminder"
-          value="Remind me to mark attendance"
-          right={toggle(attendanceReminder, setAttendanceReminder)}
-        />
-
-        <InfoRow
-          icon="volume-up"
-          label="Notification Sound"
-          value="Play a sound for new alerts"
-          right={toggle(sound, setSound)}
+          value={pushDescription}
+          onPress={osBlocked ? () => Linking.openSettings() : undefined}
+          right={toggle(settings.pushEnabled, changeSetting("pushEnabled"))}
           last
         />
       </InfoCard>

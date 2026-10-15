@@ -10,7 +10,7 @@ export default function DeliveryLayout() {
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: "600",
+          fontWeight: "700",
         },
       }}
     >

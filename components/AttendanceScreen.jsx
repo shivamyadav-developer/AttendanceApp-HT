@@ -13,6 +13,7 @@ import {
 import attendanceService from "../services/attendance.service";
 import eventEmitter from "../services/eventEmitter";
 import locationService from "../services/location.service";
+import { MOCK_LOCATION_MESSAGE } from "../utils/location";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -116,7 +117,9 @@ const StatsRow = memo(function StatsRow({
           color={isInsideOffice ? "#10B981" : "#D96A17"}
         />
         <Text style={styles.statLabel}>Distance</Text>
-        <Text style={styles.statValue}>{Math.round(distance)}m</Text>
+        <Text style={styles.statValue}>
+          {distance == null ? "--" : `${Math.round(distance)}m`}
+        </Text>
       </View>
     </View>
   );
@@ -307,6 +310,7 @@ export default function Attend() {
   const [user, setUser] = useState(null);
   const [distance, setDistance] = useState(0);
   const [isInsideOffice, setIsInsideOffice] = useState(false);
+  const [isMocked, setIsMocked] = useState(false);
   const [currentStatus, setCurrentStatus] = useState("CHECKED_OUT");
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -360,6 +364,7 @@ export default function Attend() {
         const lastLoc = JSON.parse(lastLocRaw);
         setDistance(lastLoc.distance || 0);
         setIsInsideOffice(lastLoc.isInside || false);
+        setIsMocked(lastLoc.isMocked === true);
       }
     } catch (e) {
       console.log("[Attend] Cache load error (non-fatal):", e);
@@ -417,6 +422,7 @@ export default function Attend() {
         if (location) {
           setDistance(location.distance);
           setIsInsideOffice(location.isInside);
+          setIsMocked(location.isMocked === true);
         }
       });
     } catch (error) {
@@ -441,6 +447,7 @@ export default function Attend() {
     const handleLocationUpdate = (data) => {
       setDistance(data.distance);
       setIsInsideOffice(data.isInside);
+      setIsMocked(data.isMocked === true);
     };
 
     const init = async () => {
@@ -518,6 +525,13 @@ export default function Attend() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+      {isMocked && (
+        <View style={styles.mockBanner}>
+          <MaterialIcons name="gps-off" size={22} color="#B91C1C" />
+          <Text style={styles.mockText}>{MOCK_LOCATION_MESSAGE}</Text>
+        </View>
+      )}
+
       <StatsRow
         statusColor={statusColor}
         statusLabel={statusLabel}
@@ -679,6 +693,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   autoText: { flex: 1, fontSize: 12, color: "#D96A17", lineHeight: 18 },
+  mockBanner: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "#FCA5A5",
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  mockText: { flex: 1, fontSize: 13, color: "#B91C1C", fontWeight: "600", lineHeight: 18 },
   historyCard: {
     backgroundColor: "#fff",
     marginHorizontal: 16,

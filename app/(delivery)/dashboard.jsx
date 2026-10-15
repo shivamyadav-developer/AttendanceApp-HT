@@ -349,7 +349,7 @@ export default function Dashboard() {
             {/* Header stays fixed while the page scrolls */}
             <View style={styles.header}>
                 <View style={styles.menuBox}>
-                    <AppDrawer role="Delivery Agent" iconColor="#fff" />
+                    <AppDrawer section="delivery" role="Delivery Agent" iconColor="#fff" />
                 </View>
 
                 <View style={styles.headerText}>

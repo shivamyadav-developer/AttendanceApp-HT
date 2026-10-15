@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { Text } from "react-native";
 
 export default function TabsLayout() {
   return (
@@ -7,7 +8,27 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#ff7b00",
-        
+        // No side padding so 7 tabs get the full width
+        tabBarItemStyle: {
+          paddingHorizontal: 0,
+        },
+        // Bold, single-line label that shrinks slightly if it doesn't fit
+        tabBarLabel: ({ color, children }) => (
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            allowFontScaling={false}
+            style={{
+              color,
+              fontSize: 10,
+              fontWeight: "700",
+              marginTop: 2,
+            }}
+          >
+            {children}
+          </Text>
+        ),
       }}
     >
       <Tabs.Screen
@@ -15,7 +36,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+            <Ionicons name="home" size={size} color={color} />
           ),
         }}
       />
@@ -25,7 +46,7 @@ export default function TabsLayout() {
         options={{
           title: "Attend",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+            <Ionicons name="finger-print-outline" size={size} color={color} />
           ),
         }}
       />
@@ -35,25 +56,10 @@ export default function TabsLayout() {
         options={{
           title: "LMS",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="clipboard-outline" size={size} color={color} />
+            <Ionicons name="school-outline" size={size} color={color} />
           ),
         }}
       />
-
-      <Tabs.Screen
-        name="targets"
-        options={{
-          title: "Targets",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="radio-button-on-outline"
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
-
 
       {/* NEW TAB */}
       <Tabs.Screen
@@ -71,7 +77,7 @@ export default function TabsLayout() {
           title: "NewLead",
           tabBarIcon: ({ color, size }) => (
             <Ionicons
-              name="person-add-outline"
+              name="qr-code-outline"
               size={size}
               color={color}
             />

@@ -18,6 +18,14 @@ import attendanceService from "../services/attendance.service";
 const PRIVACY_POLICY_URL =
   "https://www.hometown.in/pages/app-policy";
 
+// In-app info pages (moved here from the drawer)
+const INFO_PAGES = [
+  { label: "About", icon: "info-outline", route: "/about" },
+  { label: "Settings", icon: "settings", route: "/settings" },
+  { label: "Contact Us", icon: "support-agent", route: "/contact" },
+  { label: "Help & Support", icon: "help-outline", route: "/help" },
+];
+
 export default function ProfileSettings({ role }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -418,30 +426,29 @@ export default function ProfileSettings({ role }) {
         />
       </View>
 
-      <View style={styles.privacyCard}>
-        {/* PRIVACY POLICY */}
-        <TouchableOpacity
-          style={styles.settingsRow}
-          onPress={handlePrivacyPolicy}
-        >
-          <View style={styles.settingsIconBox}>
-            <MaterialIcons
-              name="privacy-tip"
-              size={17}
-              color="#0F2D52"
-            />
-          </View>
+      {/* Help & Information — same card/row styling as the cards above */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>
+          Help & Information
+        </Text>
 
-          <Text style={styles.settingsLabel}>
-            Privacy Policy
-          </Text>
-
-          <MaterialIcons
-            name="open-in-new"
-            size={20}
-            color="#9CA3AF"
+        {/* ABOUT / SETTINGS / CONTACT US / HELP & SUPPORT */}
+        {INFO_PAGES.map((page) => (
+          <LinkRow
+            key={page.route}
+            icon={page.icon}
+            label={page.label}
+            onPress={() => router.push(page.route)}
           />
-        </TouchableOpacity>
+        ))}
+
+        {/* PRIVACY POLICY (opens the website) */}
+        <LinkRow
+          icon="privacy-tip"
+          label="Privacy Policy"
+          external
+          onPress={handlePrivacyPolicy}
+        />
       </View>
 
       {/* Logout */}
@@ -466,13 +473,42 @@ export default function ProfileSettings({ role }) {
   );
 }
 
+// Tappable row that matches InfoRow's size and spacing
+function LinkRow({ icon, label, onPress, external = false }) {
+  return (
+    <TouchableOpacity
+      style={styles.linkRow}
+      onPress={onPress}
+      activeOpacity={0.6}
+    >
+      <View style={[styles.iconBox, styles.linkIconBox]}>
+        <MaterialIcons
+          name={icon}
+          size={17}
+          color="#0F2D52"
+        />
+      </View>
+
+      <Text style={[styles.infoLabel, styles.linkLabel]}>
+        {label.toUpperCase()}
+      </Text>
+
+      <MaterialIcons
+        name={external ? "open-in-new" : "chevron-right"}
+        size={external ? 17 : 22}
+        color="#9CA3AF"
+      />
+    </TouchableOpacity>
+  );
+}
+
 function InfoRow({ icon, label, value }) {
   return (
     <View style={styles.infoRow}>
       <View style={styles.iconBox}>
         <Ionicons
           name={icon}
-          size={15}
+          size={17}
           color="#0F2D52"
         />
       </View>
@@ -555,7 +591,7 @@ const styles = StyleSheet.create({
 
   roleBadgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "700",
   },
 
@@ -577,7 +613,7 @@ const styles = StyleSheet.create({
 
   statusText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "600",
   },
 
@@ -593,7 +629,7 @@ const styles = StyleSheet.create({
   },
 
   cardTitle: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "bold",
     color: "#0F2D52",
     marginBottom: 9,
@@ -610,8 +646,8 @@ const styles = StyleSheet.create({
   },
 
   iconBox: {
-    width: 26,
-    height: 26,
+    width: 30,
+    height: 30,
     borderRadius: 7,
     backgroundColor: "#EEF3F8",
     justifyContent: "center",
@@ -620,51 +656,44 @@ const styles = StyleSheet.create({
   },
 
   infoLabel: {
-    fontSize: 11,
+    fontSize: 13,
     color: "#666",
-    width: 110,
+    width: 125,
     fontWeight: "500",
   },
 
   infoValue: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "600",
     color: "#222",
     flex: 1,
     textAlign: "right",
   },
 
-  settingsRow: {
+  // infoLabel has a fixed width for label/value rows; link rows fill the line
+  linkLabel: {
+    flex: 1,
+    width: undefined,
+    color: "#374151",
+    fontWeight: "600",
+  },
+
+  // Each Help & Information item is its own bordered tile
+  linkRow: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#fff", // same white as the cards
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
     paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 8,
   },
 
-  settingsIconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
+  // Light-blue icon box, same as the rows in the cards above
+  linkIconBox: {
     backgroundColor: "#EEF3F8",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-
-  settingsLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: "#374151",
-    fontWeight: "500",
-  },
-
-  privacyCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 14,
-    marginTop: 9,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    elevation: 2,
   },
 
   rowBorder: {
@@ -687,7 +716,7 @@ const styles = StyleSheet.create({
 
   logoutText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "700",
   },
 });

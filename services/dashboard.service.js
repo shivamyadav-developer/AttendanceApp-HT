@@ -2,30 +2,60 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "./api";
 
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+// Turn the raw /ontrack/emp-dashboard response into safe, ready-to-render values
+export function normalizeDashboard(raw = {}) {
+    const monthlyData = Array.isArray(raw.monthlyData)
+        ? raw.monthlyData.map((d) => ({
+            date: d.targetDate,
+            target: num(d.targetAmount),
+            achieved: num(d.achievement),
+            isWeekOff: d.isWeekOff === true,
+        }))
+        : [];
+
+    return {
+        employeeId: raw.employeeId ?? null,
+        year: raw.year ?? null,
+        month: raw.month ?? null,
+
+        monthlyTarget: num(raw.monthlyTarget),
+        monthlyAchieved: num(raw.monthlyAchieved),
+        // mtdTarget = sum of daily targets up to and including today
+        mtdTarget: num(raw.mtdTarget),
+
+        todayDate: raw.todayDate ?? null,
+        todayTarget: num(raw.todayTarget),
+        todayAchieved: num(raw.todayAchieved),
+        todayWeekOff: raw.todayWeekOff === true,
+
+        yesterdayDate: raw.yesterdayDate ?? null,
+        yesterdayTarget: num(raw.yesterdayTarget),
+        yesterdayAchieved: num(raw.yesterdayAchieved),
+        yesterdayWeekOff: raw.yesterdayWeekOff === true,
+
+        monthlyData,
+    };
+}
+
 class DashboardService {
     async getEmployeeDashboard() {
-        try {
-            // Get employee number from AsyncStorage
-            const employeeNumber = await AsyncStorage.getItem("employeeNumber");
-            
-            // Debug: Log the employee number
-            console.log("Employee Number from storage:", employeeNumber);
-            
-            if (!employeeNumber) {
-                throw new Error("Employee number not found. Please login again.");
-            }
-            
-            // Make the API call with the employee number
-            const response = await api.get(`/ontrack/emp-dashboard/${employeeNumber}`);
-            
-            // Debug: Log the response
-            console.log("Dashboard API response:", response);
-            
-            return response;
-        } catch (error) {
-            console.error("Dashboard service error:", error);
-            throw error;
+        const employeeNumber = await AsyncStorage.getItem("employeeNumber");
+
+        if (!employeeNumber) {
+            throw new Error("Employee number not found. Please login again.");
         }
+
+        const response = await api.get(
+            `/ontrack/emp-dashboard/${encodeURIComponent(employeeNumber)}`
+        );
+
+        if (!response?.success) {
+            throw new Error(response?.message || "Failed to load dashboard data");
+        }
+
+        return normalizeDashboard(response.data);
     }
 }
 

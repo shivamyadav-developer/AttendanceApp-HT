@@ -84,7 +84,7 @@ export default function NewTrip() {
     <View style={styles.container}>
       {/* Header stays fixed while the page scrolls */}
       <View style={styles.header}>
-        <AppDrawer role="Shipment" iconColor="#fff" />
+        <AppDrawer section="shipment" role="Shipment" iconColor="#fff" />
 
         <View style={styles.iconBox}>
           <MaterialIcons

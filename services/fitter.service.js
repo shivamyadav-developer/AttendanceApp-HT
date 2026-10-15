@@ -1,6 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api';
 
+// Ticket statuses that mean the fitting is finished
+export const FITTING_COMPLETED_STATUSES = [
+    'FITTING_DONE',
+    'RESOLVED',
+    'CLOSED',
+];
+
+// The backend ignores the isFittingDone query param and often leaves
+// fitting.isFittingDone=false after resolving, so status is the source of truth.
+export const isFittingCompleted = (ticket) =>
+    ticket?.isFittingDone === true ||
+    ticket?.fitting?.isFittingDone === true ||
+    FITTING_COMPLETED_STATUSES.includes(ticket?.status);
+
 class FitterService {
     // --------------------------------------------------
     // Get logged-in fitter information
@@ -35,9 +49,30 @@ class FitterService {
         return {
             user,
             fitterId: String(fitterId),
+            employeeNumber: String(user.employeeNumber || ''),
             siteId,
             role,
         };
+    }
+
+    // --------------------------------------------------
+    // Is this ticket assigned to the logged-in fitter?
+    //
+    // Tickets store the assignment as
+    // fitting.assignedToId = <employee number>.
+    // assignedToFitterId (Mongo _id) is kept as a fallback.
+    // --------------------------------------------------
+    isAssignedTo(ticket, employeeNumber, fitterId) {
+        const assignedToId = ticket?.fitting?.assignedToId;
+
+        if (assignedToId != null && employeeNumber) {
+            return String(assignedToId) === employeeNumber;
+        }
+
+        return (
+            ticket?.assignedToFitterId != null &&
+            String(ticket.assignedToFitterId) === fitterId
+        );
     }
 
     // --------------------------------------------------
@@ -86,6 +121,7 @@ class FitterService {
     async getPendingTasks() {
         const {
             fitterId,
+            employeeNumber,
             siteId,
             role,
         } = await this.getCurrentFitter();
@@ -108,11 +144,9 @@ class FitterService {
 
         return tickets.filter(
             ticket =>
-                ticket.isDeliveryDone === true &&
                 ticket.isFitting === true &&
-                ticket.isFittingDone === false &&
-                String(ticket.assignedToFitterId) ===
-                    String(fitterId)
+                !isFittingCompleted(ticket) &&
+                this.isAssignedTo(ticket, employeeNumber, fitterId)
         );
     }
 
@@ -126,6 +160,7 @@ class FitterService {
     async getCompletedTasks() {
         const {
             fitterId,
+            employeeNumber,
             siteId,
             role,
         } = await this.getCurrentFitter();
@@ -148,9 +183,8 @@ class FitterService {
         return tickets.filter(
             ticket =>
                 ticket.isFitting === true &&
-                ticket.isFittingDone === true &&
-                String(ticket.assignedToFitterId) ===
-                    String(fitterId)
+                isFittingCompleted(ticket) &&
+                this.isAssignedTo(ticket, employeeNumber, fitterId)
         );
     }
 

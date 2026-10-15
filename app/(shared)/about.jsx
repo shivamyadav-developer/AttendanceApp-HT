@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   brandHome: {
-    color: "#0F2D52",
+    color: "#463227",
   },
   brandTown: {
     color: "#D86A16",
