@@ -50,6 +50,11 @@ const CONFIG = BackgroundGeolocation && {
         // Already inside a store when monitoring starts → check in right away
         geofenceInitialTriggerEntry: true,
     },
+    activity: {
+        // No ACTIVITY_RECOGNITION permission (Play treats it as a health
+        // permission; it is blocked in app.config.js). Geofences work without it.
+        disableMotionActivityUpdates: true,
+    },
     app: {
         stopOnTerminate: false,
         startOnBoot: true,

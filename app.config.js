@@ -77,6 +77,13 @@ export default {
                 "android.permission.FOREGROUND_SERVICE",
                 "android.permission.FOREGROUND_SERVICE_LOCATION",
             ],
+            // Added by react-native-background-geolocation for motion detection.
+            // Google Play treats it as a health permission; auto attendance
+            // doesn't need it (motion updates are disabled in autoAttendance.service).
+            blockedPermissions: [
+                "android.permission.ACTIVITY_RECOGNITION",
+                "com.google.android.gms.permission.ACTIVITY_RECOGNITION",
+            ],
 
             adaptiveIcon: {
                 backgroundColor: "#E6F4FE",
