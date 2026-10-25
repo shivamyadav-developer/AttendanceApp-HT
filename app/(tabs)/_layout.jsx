@@ -103,6 +103,15 @@ export default function TabsLayout() {
         }}
       />
 
+      {/* Drawer only — not shown in the bottom bar */}
+      <Tabs.Screen
+        name="checklist"
+        options={{
+          title: "Checklist",
+          href: null,
+        }}
+      />
+
     </Tabs>
   );
 }

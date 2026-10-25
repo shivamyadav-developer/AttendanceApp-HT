@@ -7,8 +7,8 @@ import InfoPage, {
   InfoText,
 } from "../../components/InfoPage";
 
-const SUPPORT_PHONE = "08069252525";
-const SUPPORT_EMAIL = "care@hometown.in";
+const SUPPORT_PHONE = "7208726671";
+const SUPPORT_EMAIL = "jay.jadhav@praxisretail.in";
 const SUPPORT_HOURS = "10 AM - 6 PM";
 
 // TODO: placeholder office address - replace with the real one

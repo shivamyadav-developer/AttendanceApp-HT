@@ -162,6 +162,8 @@ class AttendanceService {
             return {
                 success: false,
                 message: error.message || 'Check-in failed',
+                // No internet / server down — worth trying again later
+                retryable: !error.status || error.status >= 500,
             };
         }
     }
@@ -193,6 +195,8 @@ class AttendanceService {
             return {
                 success: false,
                 message: error.message || 'Check-out failed',
+                // No internet / server down — worth trying again later
+                retryable: !error.status || error.status >= 500,
             };
         }
     }

@@ -46,6 +46,7 @@ export default {
 
         ios: {
             supportsTablet: true,
+            bundleIdentifier: "ontrack.hometown",
 
             config: {
                 googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -58,6 +59,12 @@ export default {
                     "Allow app to track your location.",
                 NSLocationAlwaysUsageDescription:
                     "Allow app to track your location.",
+                NSMotionUsageDescription:
+                    "Motion detection helps save battery while checking if you have left the store.",
+                // react-native-background-geolocation (auto check-out)
+                TSLocationManagerLicense: process.env.BGGEO_LICENSE_IOS,
+                UIBackgroundModes: ["location", "fetch", "processing"],
+                BGTaskSchedulerPermittedIdentifiers: ["com.transistorsoft.fetch"],
             },
         },
 
@@ -129,6 +136,15 @@ export default {
                         "Allow app to track your location.",
                     isAndroidBackgroundLocationEnabled: true,
                     isAndroidForegroundServiceEnabled: true,
+                },
+            ],
+
+            // Auto check-out when leaving the store (services/autoCheckout.service.js).
+            // Keys come from .env locally and EAS environment variables in cloud builds.
+            [
+                "react-native-background-geolocation",
+                {
+                    license: process.env.BGGEO_LICENSE_ANDROID,
                 },
             ],
 

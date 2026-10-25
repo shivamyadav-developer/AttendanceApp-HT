@@ -414,6 +414,7 @@ export default function LoginScreen() {
 
             <TextInput
               placeholder="Enter Username"
+              placeholderTextColor="#9CA3AF"
               value={username}
               onChangeText={setUsername}
               style={styles.input}
@@ -430,6 +431,7 @@ export default function LoginScreen() {
 
             <TextInput
               placeholder="Enter Password"
+              placeholderTextColor="#9CA3AF"
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
@@ -631,7 +633,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     marginLeft: 10,
-    fontSize: 14
+    fontSize: 14,
+    // Explicit colour: in phone dark mode Android otherwise draws typed text
+    // white, which is invisible on this light box.
+    color: "#111827",
   },
 
   demoNote: {

@@ -73,7 +73,7 @@ export const STORES = [
 ];
 
 // Maximum permitted distance in metres
-export const MAX_DISTANCE = 500;
+export const MAX_DISTANCE = 100;
 
 // Calculate straight-line distance between two GPS points
 export const calculateDistance = (
@@ -113,7 +113,7 @@ export const MOCK_LOCATION_MESSAGE =
 // expo-location sets `mocked` on Android only; on iOS it is always undefined.
 export const isMockLocation = (location) => location?.mocked === true;
 
-// Check whether the employee is within 500 metres
+// Check whether the employee is within MAX_DISTANCE metres
 // of at least one configured store.
 export const checkStoreLocation = (
   latitude,

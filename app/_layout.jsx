@@ -1,5 +1,7 @@
 import { Stack } from "expo-router";
 import { useEffect } from "react";
+import ForceUpdateGate from "../components/ForceUpdateGate";
+import * as autoAttendance from "../services/autoAttendance.service";
 import locationService from "../services/location.service";
 import notificationService from "../services/notification.service";
 
@@ -13,6 +15,9 @@ export default function RootLayout() {
 
         // Notification permission
         await notificationService.init();
+
+        // Automatic attendance: restore geofence watching (iOS background relaunch)
+        await autoAttendance.init();
 
         // Start foreground location tracking
         if (mounted) {
@@ -33,5 +38,11 @@ export default function RootLayout() {
     };
   }, []);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      {/* Blocks the app while a newer Play Store version exists */}
+      <ForceUpdateGate />
+    </>
+  );
 }

@@ -3,8 +3,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
+  AppState,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,36 +14,11 @@ import {
 } from "react-native";
 import attendanceService from "../services/attendance.service";
 import eventEmitter from "../services/eventEmitter";
+import * as autoAttendance from "../services/autoAttendance.service";
 import locationService from "../services/location.service";
-import { MAX_DISTANCE, MOCK_LOCATION_MESSAGE } from "../utils/location";
+import { MOCK_LOCATION_MESSAGE } from "../utils/location";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-
-// Today's own check-in / check-out times, saved on the phone.
-// Needed because the backend files a session under the day it STARTED —
-// e.g. a check-out today that closes yesterday's session has no "today" record.
-const PUNCH_KEY = "todayPunchTimes";
-const localDateKey = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
-
-const loadTodayPunch = async (employeeNumber) => {
-  try {
-    const raw = await AsyncStorage.getItem(PUNCH_KEY);
-    const saved = raw ? JSON.parse(raw) : null;
-    if (saved?.date === localDateKey() && saved?.employeeNumber === employeeNumber) {
-      return { checkIn: saved.checkIn || null, checkOut: saved.checkOut || null };
-    }
-  } catch { }
-  return { checkIn: null, checkOut: null };
-};
-
-const saveTodayPunch = async (employeeNumber, punch) => {
-  try {
-    await AsyncStorage.setItem(
-      PUNCH_KEY,
-      JSON.stringify({ ...punch, employeeNumber, date: localDateKey() })
-    );
-  } catch { }
-};
 
 const formatTime = (dateString) => {
   if (!dateString) return "--:--";
@@ -167,7 +142,7 @@ const SessionCard = memo(function SessionCard({
         <MaterialIcons name="event-busy" size={32} color="#D1D5DB" />
         <Text style={styles.emptyText}>No attendance recorded today</Text>
         <Text style={styles.emptySubText}>
-          Tap Check In when you reach the store
+          You will be checked in automatically when you reach the store
         </Text>
       </View>
     );
@@ -335,13 +310,11 @@ const HistoryList = memo(function HistoryList({
 // ─── component ──────────────────────────────────────────────────────────────
 
 export default function Attend() {
-  const [user, setUser] = useState(null);
   const [distance, setDistance] = useState(null);
   const [isInsideOffice, setIsInsideOffice] = useState(false);
   const [isMocked, setIsMocked] = useState(false);
-  const [storeName, setStoreName] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [todayPunch, setTodayPunch] = useState({ checkIn: null, checkOut: null });
+  // { available, enabled, always } from autoAttendance.getStatus()
+  const [autoStatus, setAutoStatus] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("CHECKED_OUT");
   const [attendanceHistory, setAttendanceHistory] = useState([]);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -396,7 +369,6 @@ export default function Attend() {
         setDistance(lastLoc.distance ?? null);
         setIsInsideOffice(lastLoc.isInside || false);
         setIsMocked(lastLoc.isMocked === true);
-        setStoreName(lastLoc.storeName ?? null);
       }
     } catch (e) {
       console.log("[Attend] Cache load error (non-fatal):", e);
@@ -449,13 +421,13 @@ export default function Attend() {
       setTodayAttendance(effectiveTodayRecord);
       setActiveCheckIn(openSessionIsToday ? openSession : null);
       if (history.success) setAttendanceHistory(history.data);
+      autoAttendance.getStatus().then(setAutoStatus);
 
       locationService.getCurrentLocation().then((location) => {
         if (location) {
           setDistance(location.distance);
           setIsInsideOffice(location.isInside);
           setIsMocked(location.isMocked === true);
-          setStoreName(location.storeName ?? null);
         }
       });
     } catch (error) {
@@ -481,7 +453,6 @@ export default function Attend() {
       setDistance(data.distance);
       setIsInsideOffice(data.isInside);
       setIsMocked(data.isMocked === true);
-      setStoreName(data.storeName ?? null);
     };
 
     const init = async () => {
@@ -491,9 +462,6 @@ export default function Attend() {
           router.replace("/");
           return;
         }
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setTodayPunch(await loadTodayPunch(parsedUser.employeeNumber));
 
         await loadFromCache();
         refreshAttendanceData();
@@ -502,13 +470,27 @@ export default function Attend() {
       }
     };
 
+    // Entered / left a store — show the new status right away;
+    // ATTENDANCE_UPDATED (emitted next) reloads the session from the API.
+    const handleAutoAttendance = ({ action }) => {
+      setCurrentStatus(action === "in" ? "CHECKED_IN" : "CHECKED_OUT");
+    };
+
+    // Back from Settings (e.g. after allowing "all the time") — refresh the banner
+    const appStateSub = AppState.addEventListener("change", (next) => {
+      if (next === "active") autoAttendance.getStatus().then(setAutoStatus);
+    });
+
     eventEmitter.on("ATTENDANCE_UPDATED", handleAttendanceUpdate);
     eventEmitter.on("LOCATION_UPDATED", handleLocationUpdate);
+    eventEmitter.on("AUTO_ATTENDANCE", handleAutoAttendance);
     init();
 
     return () => {
       eventEmitter.off("ATTENDANCE_UPDATED", handleAttendanceUpdate);
       eventEmitter.off("LOCATION_UPDATED", handleLocationUpdate);
+      eventEmitter.off("AUTO_ATTENDANCE", handleAutoAttendance);
+      appStateSub.remove();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -522,43 +504,6 @@ export default function Attend() {
   const handleLoadMore = useCallback(() => {
     setVisibleCount((prev) => prev + 10);
   }, []);
-
-  // Manual Check In / Check Out (location is verified in locationService)
-  // `submitting` holds which button is busy: "in" | "out" | false
-  const handleAttendanceAction = useCallback(async (action) => {
-    if (submitting) return;
-    const checkingOut = action === "out";
-
-    setSubmitting(action);
-    try {
-      const result = checkingOut
-        ? await locationService.manualCheckOut()
-        : await locationService.manualCheckIn();
-
-      if (result.success) {
-        setCurrentStatus(checkingOut ? "CHECKED_OUT" : "CHECKED_IN");
-
-        // Show the time right away. A new check-in clears the old check-out.
-        const nextPunch = checkingOut
-          ? { ...todayPunch, checkOut: result.time }
-          : { checkIn: result.time, checkOut: null };
-        setTodayPunch(nextPunch);
-        saveTodayPunch(user?.employeeNumber, nextPunch);
-
-        Alert.alert(
-          checkingOut ? "Checked Out ✓" : "Checked In ✓",
-          result.message
-        );
-      } else {
-        Alert.alert(
-          checkingOut ? "Cannot Check Out" : "Cannot Check In",
-          result.message
-        );
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }, [submitting, todayPunch, user]);
 
   // ── derived ──────────────────────────────────────────────────────────────
   const isCheckedIn = currentStatus === "CHECKED_IN";
@@ -612,99 +557,6 @@ export default function Attend() {
         isInsideOffice={isInsideOffice}
       />
 
-      {/* Manual Check In / Check Out */}
-      <View style={styles.actionCard}>
-        <View style={styles.actionInfoRow}>
-          <MaterialIcons
-            name={isMocked ? "gps-off" : isInsideOffice ? "store" : "location-off"}
-            size={20}
-            color={isMocked ? "#B91C1C" : isInsideOffice ? "#10B981" : "#D96A17"}
-          />
-          <Text style={styles.actionInfoText}>
-            {isMocked
-              ? "Fake location detected — attendance blocked"
-              : isInsideOffice
-                ? `You're at ${storeName || "the store"}`
-                : distance == null
-                  ? "Getting your location…"
-                  : `You must be within ${MAX_DISTANCE} m of a store (now ${Math.round(distance)} m away)`}
-          </Text>
-        </View>
-
-        {/* Today's check-in / check-out times */}
-        <View style={styles.actionTimesRow}>
-          <View style={styles.actionTimeBox}>
-            <Text style={styles.actionTimeLabel}>Check In</Text>
-            <Text style={styles.actionTimeValue}>
-              {formatTime(
-                todayPunch.checkIn ||
-                  (isCheckedIn && activeCheckIn
-                    ? activeCheckIn
-                    : todayAttendance?.oldestCheckIn)
-              )}
-            </Text>
-          </View>
-          <View style={styles.actionTimeBox}>
-            <Text style={styles.actionTimeLabel}>Check Out</Text>
-            <Text
-              style={[
-                styles.actionTimeValue,
-                isCheckedIn && { color: "#10B981", fontSize: 13 },
-              ]}
-            >
-              {isCheckedIn
-                ? "Active session"
-                : formatTime(todayPunch.checkOut || todayAttendance?.latestCheckOut)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Both buttons; only the one that applies is enabled */}
-        <View style={styles.actionButtonsRow}>
-          {[
-            { key: "in", label: "Check In", icon: "login", color: "#10B981", enabled: !isCheckedIn },
-            { key: "out", label: "Check Out", icon: "logout", color: "#EF4444", enabled: isCheckedIn },
-          ].map((btn) => {
-            const busy = submitting === btn.key;
-            const disabled = !btn.enabled || !!submitting;
-
-            return (
-              <TouchableOpacity
-                key={btn.key}
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: btn.enabled ? btn.color : "#E5E7EB" },
-                  disabled && !busy && btn.enabled && styles.actionButtonDisabled,
-                ]}
-                onPress={() => handleAttendanceAction(btn.key)}
-                disabled={disabled}
-                activeOpacity={0.8}
-              >
-                {busy ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <MaterialIcons
-                      name={btn.icon}
-                      size={18}
-                      color={btn.enabled ? "#fff" : "#9CA3AF"}
-                    />
-                    <Text
-                      style={[
-                        styles.actionButtonText,
-                        !btn.enabled && { color: "#9CA3AF" },
-                      ]}
-                    >
-                      {btn.label}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
       <Text style={styles.sectionTitle}>Today's Session</Text>
 
       <SessionCard
@@ -716,13 +568,31 @@ export default function Attend() {
         todayDisplayStatus={todayDisplayStatus}
       />
 
-      <View style={styles.autoCard}>
-        <MaterialIcons name="gps-fixed" size={20} color="#D96A17" />
-        <Text style={styles.autoText}>
-          Tap Check In when you arrive and Check Out before you leave. Both
-          work only within {MAX_DISTANCE} m of a store.
-        </Text>
-      </View>
+      {autoStatus && (!autoStatus.available || !autoStatus.always) ? (
+        <View style={[styles.autoCard, styles.autoCardWarn]}>
+          <MaterialIcons name="location-disabled" size={20} color="#B91C1C" />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.autoText, { color: "#B91C1C" }]}>
+              {autoStatus.available
+                ? 'Auto attendance is off. Set location access to "Allow all the time" so you are checked in/out automatically.'
+                : "Auto attendance is not available in this version of the app. Please install the latest app."}
+            </Text>
+            {autoStatus.available && (
+              <TouchableOpacity onPress={() => Linking.openSettings()}>
+                <Text style={styles.autoLink}>Open Settings</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      ) : (
+        <View style={styles.autoCard}>
+          <MaterialIcons name="gps-fixed" size={20} color="#D96A17" />
+          <Text style={styles.autoText}>
+            Auto tracking active — checked in/out automatically as you enter or
+            leave the store. Re-entry triggers a new session.
+          </Text>
+        </View>
+      )}
 
       <HistoryList
         sortedHistory={sortedHistory}
@@ -859,55 +729,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   autoText: { flex: 1, fontSize: 12, color: "#D96A17", lineHeight: 18 },
-  actionCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 4,
-    marginBottom: 8,
-    padding: 14,
-    borderRadius: 14,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-  },
-  actionInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  actionInfoText: { flex: 1, fontSize: 13, color: "#374151", fontWeight: "600" },
-  actionTimesRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 12,
-  },
-  actionTimeBox: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  actionTimeLabel: { fontSize: 11, color: "#6B7280", fontWeight: "600" },
-  actionTimeValue: { marginTop: 2, fontSize: 15, color: "#111827", fontWeight: "700" },
-  actionButtonsRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
-  },
-  actionButtonDisabled: { opacity: 0.6 },
-  actionButtonText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  autoCardWarn: { backgroundColor: "#FEE2E2", alignItems: "flex-start" },
+  autoLink: { marginTop: 6, fontSize: 12, fontWeight: "700", color: "#B91C1C", textDecorationLine: "underline" },
   mockBanner: {
     backgroundColor: "#FEE2E2",
     borderColor: "#FCA5A5",

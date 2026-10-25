@@ -27,6 +27,8 @@ const TAB_MENUS = {
   staff: {
     group: "(tabs)",
     items: [
+      // Drawer only (hidden from the bottom bar via href: null)
+      { name: "checklist", title: "Checklist", set: "MaterialCommunityIcons", icon: "clipboard-check-outline" },
       { name: "home", title: "Target", set: "MaterialCommunityIcons", icon: "bullseye-arrow" },
       { name: "leaderboard", title: "Leaderboard", set: "MaterialCommunityIcons", icon: "crown-outline" },
       { name: "attend", title: "Attend", set: "Ionicons", icon: "finger-print-outline" },

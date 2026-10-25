@@ -109,14 +109,14 @@ function DayCard({ title, date, target, achieved, weekOff, icon, iconBg, iconCol
 
       <View style={styles.bigCardRow}>
         <View>
-          <Text style={styles.metricLabel}>Achieved</Text>
-          <Text style={styles.metricValue}>{formatCurrency(achieved)}</Text>
-        </View>
-        <View style={{ alignItems: "flex-end" }}>
           <Text style={styles.metricLabel}>Target</Text>
           <Text style={styles.metricValue}>
             {weekOff ? "—" : formatCurrency(target)}
           </Text>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={styles.metricLabel}>Achieved</Text>
+          <Text style={styles.metricValue}>{formatCurrency(achieved)}</Text>
         </View>
       </View>
 
@@ -131,6 +131,8 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [employeeNumber, setEmployeeNumber] = useState(null);
   const [userName, setUserName] = useState("Employee");
+  // Badge under the name: login role (e.g. STORE_STAFF → "STORE STAFF")
+  const [userRole, setUserRole] = useState("");
 
   const [data, setData] = useState(EMPTY_DASHBOARD);
 
@@ -159,6 +161,11 @@ export default function Home() {
           "Employee";
 
         setUserName(name);
+        setUserRole(
+          String(parsedData.role || parsedData.jobTitle || "")
+            .replace(/_/g, " ")
+            .toUpperCase()
+        );
       }
     } catch (error) {
       console.error("Error getting user name:", error);
@@ -256,9 +263,11 @@ export default function Home() {
             <Text style={styles.name} numberOfLines={1}>{userName}</Text>
 
             <View style={styles.badgeRow}>
-              <View style={styles.staffBadge}>
-                <Text style={styles.staffText}>STORE STAFF</Text>
-              </View>
+              {!!userRole && (
+                <View style={styles.staffBadge}>
+                  <Text style={styles.staffText}>{userRole}</Text>
+                </View>
+              )}
               {!!employeeNumber && (
                 <View style={[styles.staffBadge, { backgroundColor: '#4A6FA5' }]}>
                   <Text style={styles.staffText}>ID: {employeeNumber}</Text>
@@ -313,15 +322,15 @@ export default function Home() {
 
           <View style={styles.bigCardRow}>
             <View>
-              <Text style={styles.metricLabel}>MTD Achieved</Text>
-              <Text style={styles.metricValue}>
-                {formatCurrency(data.monthlyAchieved)}
-              </Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
               <Text style={styles.metricLabel}>MTD Target</Text>
               <Text style={styles.metricValue}>
                 {formatCurrency(data.mtdTarget)}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.metricLabel}>MTD Achieved</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(data.monthlyAchieved)}
               </Text>
             </View>
           </View>
@@ -351,15 +360,15 @@ export default function Home() {
 
           <View style={styles.bigCardRow}>
             <View>
-              <Text style={styles.metricLabel}>Achieved</Text>
-              <Text style={styles.metricValue}>
-                {formatCurrency(data.monthlyAchieved)}
-              </Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
               <Text style={styles.metricLabel}>Target</Text>
               <Text style={styles.metricValue}>
                 {formatCurrency(data.monthlyTarget)}
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={styles.metricLabel}>Achieved</Text>
+              <Text style={styles.metricValue}>
+                {formatCurrency(data.monthlyAchieved)}
               </Text>
             </View>
           </View>

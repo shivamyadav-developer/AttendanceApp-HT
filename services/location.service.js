@@ -1,21 +1,17 @@
 // services/location.service.js
 //
-// Attendance is MANUAL: the user taps Check In / Check Out on the
-// Attendance screen. Nothing is checked in or out automatically.
+// Attendance is AUTOMATIC: autoAttendance.service checks the user in/out
+// when they enter or leave a store's MAX_DISTANCE area (started here on login).
 //
-// This service still watches GPS while the app is open, because:
+// This service also watches GPS while the app is open, because:
 //  - the Attendance screen shows the distance to the nearest store
 //  - the delivery / fitter tracking maps listen to LOCATION_UPDATED
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { Alert, AppState } from 'react-native';
-import {
-    MAX_DISTANCE,
-    MOCK_LOCATION_MESSAGE,
-    checkStoreLocation,
-    isMockLocation,
-} from '../utils/location';
+import { checkStoreLocation, isMockLocation } from '../utils/location';
 import attendanceService from './attendance.service';
+import * as autoAttendance from './autoAttendance.service';
 import eventEmitter from './eventEmitter';
 import { BACKGROUND_LOCATION_TASK } from './geofence.task';
 
@@ -27,20 +23,16 @@ const LEGACY_KEYS = [
     'bgMockNotifiedAt',
 ];
 
-const formatTime = (date) =>
-    date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-
 class LocationService {
     constructor() {
         this.locationSubscription = null;
         this.appStateSubscription = null;
         this.isTracking = false;
         this.appState = AppState.currentState;
-        this.isSubmitting = false; // a manual check-in/out is in progress
     }
 
     // ── Permissions ──────────────────────────────────────────────────────────
-    // Only "while using the app" is needed now — no background location.
+    // "While using the app" here; autoAttendance.start() then asks for "Always".
 
     async _requestPermissions() {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -77,6 +69,7 @@ class LocationService {
     async startTracking() {
         if (this.isTracking) {
             console.log('[LocationService] Tracking already active');
+            autoAttendance.start();
             return true;
         }
 
@@ -110,6 +103,10 @@ class LocationService {
             );
 
             await this.getCurrentLocation();
+
+            // Geofences for automatic check-in/out (asks for "Always" location).
+            // Not awaited, so login is not held up by the permission screen.
+            autoAttendance.start();
             return true;
         } catch (error) {
             console.error('[LocationService] Failed to start tracking:', error);
@@ -135,7 +132,7 @@ class LocationService {
     async stopAllTracking() {
         this.stopTracking();
         await this._stopBackgroundTask();
-        this.isSubmitting = false;
+        await autoAttendance.stop();
         try {
             await AsyncStorage.multiRemove([...LEGACY_KEYS, 'lastLocation']);
         } catch (e) {
@@ -171,151 +168,6 @@ class LocationService {
         } catch { }
     }
 
-    // ── Manual check-in / check-out ──────────────────────────────────────────
-
-    // Fresh GPS fix + checks shared by both buttons.
-    // Returns { ok: true, coords, store } or { ok: false, message }.
-    async _verifyAtStore(actionLabel) {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status !== 'granted') {
-            const granted = await this._requestPermissions();
-            if (!granted) {
-                return { ok: false, message: 'Location permission is required.' };
-            }
-        }
-
-        let location;
-        try {
-            location = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
-        } catch (e) {
-            return {
-                ok: false,
-                message: 'Could not get your location. Turn on GPS and try again.',
-            };
-        }
-
-        if (isMockLocation(location)) {
-            return { ok: false, message: MOCK_LOCATION_MESSAGE };
-        }
-
-        const { allowed, store, distance, message } = checkStoreLocation(
-            location.coords.latitude,
-            location.coords.longitude
-        );
-
-        // Keep the screen's distance display in sync with this fresh fix
-        await this.handleLocationUpdate(location);
-
-        if (!allowed) {
-            return {
-                ok: false,
-                message: store
-                    ? `You are ${distance} m from ${store.name}. You must be within ${MAX_DISTANCE} m of a store to ${actionLabel}.`
-                    : message,
-            };
-        }
-
-        return { ok: true, coords: location.coords, store };
-    }
-
-    async _getEmployeeNumber() {
-        const raw = await AsyncStorage.getItem('userData');
-        const user = raw ? JSON.parse(raw) : null;
-        return user?.employeeNumber || null;
-    }
-
-    async manualCheckIn() {
-        if (this.isSubmitting) {
-            return { success: false, message: 'Please wait…' };
-        }
-        this.isSubmitting = true;
-
-        try {
-            const employeeNumber = await this._getEmployeeNumber();
-            if (!employeeNumber) {
-                return { success: false, message: 'Session expired. Please login again.' };
-            }
-
-            const check = await this._verifyAtStore('check in');
-            if (!check.ok) return { success: false, message: check.message };
-
-            const result = await attendanceService.checkIn(
-                employeeNumber,
-                check.coords.latitude,
-                check.coords.longitude
-            );
-
-            if (!result.success) {
-                return { success: false, message: result.message || 'Check-in failed. Please try again.' };
-            }
-
-            // Refresh status + history on the Attendance screen
-            eventEmitter.emit('ATTENDANCE_UPDATED');
-
-            return {
-                success: true,
-                // Server time if the API returns it, otherwise now
-                time: result.data?.attendance?.checkIn || new Date().toISOString(),
-                message: result.alreadyCheckedIn
-                    ? 'You are already checked in.'
-                    : `Checked in at ${formatTime(new Date())} near ${check.store.name}.`,
-            };
-        } catch (error) {
-            console.error('[LocationService] Manual check-in error:', error);
-            return { success: false, message: 'Check-in failed. Please try again.' };
-        } finally {
-            this.isSubmitting = false;
-        }
-    }
-
-    async manualCheckOut() {
-        if (this.isSubmitting) {
-            return { success: false, message: 'Please wait…' };
-        }
-        this.isSubmitting = true;
-
-        try {
-            const employeeNumber = await this._getEmployeeNumber();
-            if (!employeeNumber) {
-                return { success: false, message: 'Session expired. Please login again.' };
-            }
-
-            const check = await this._verifyAtStore('check out');
-            if (!check.ok) return { success: false, message: check.message };
-
-            const result = await attendanceService.checkOut(
-                employeeNumber,
-                check.coords.latitude,
-                check.coords.longitude
-            );
-
-            if (!result.success) {
-                return { success: false, message: result.message || 'Check-out failed. Please try again.' };
-            }
-
-            eventEmitter.emit('ATTENDANCE_UPDATED');
-
-            const minutes = result.data?.attendance?.durationMinutes || 0;
-            const duration = minutes
-                ? ` Total: ${Math.floor(minutes / 60)}h ${minutes % 60}m.`
-                : '';
-
-            return {
-                success: true,
-                // Server time if the API returns it, otherwise now
-                time: result.data?.attendance?.checkOut || new Date().toISOString(),
-                message: `Checked out at ${formatTime(new Date())}.${duration}`,
-            };
-        } catch (error) {
-            console.error('[LocationService] Manual check-out error:', error);
-            return { success: false, message: 'Check-out failed. Please try again.' };
-        } finally {
-            this.isSubmitting = false;
-        }
-    }
-
     // ── App state ────────────────────────────────────────────────────────────
 
     handleAppStateChange(nextAppState) {
@@ -324,6 +176,8 @@ class LocationService {
             attendanceService.clearStatusCache();
             eventEmitter.emit('ATTENDANCE_UPDATED');
             this.getCurrentLocation();
+            autoAttendance.retryPending();
+            autoAttendance.reconcile();
         }
         this.appState = nextAppState;
     }

@@ -91,7 +91,16 @@ const api = {
         );
     },
 
-    async putFormData(endpoint, formData) {
+    putFormData(endpoint, formData) {
+        return this.sendFormData('PUT', endpoint, formData);
+    },
+
+    postFormData(endpoint, formData) {
+        return this.sendFormData('POST', endpoint, formData);
+    },
+
+    // No Content-Type header: fetch sets multipart/form-data with the boundary
+    async sendFormData(method, endpoint, formData) {
         const token = await AsyncStorage.getItem('userToken');
 
         const headers = {
@@ -104,7 +113,7 @@ const api = {
 
         return send(
             `${BASE_URL}${endpoint}`,
-            { method: 'PUT', headers, body: formData },
+            { method, headers, body: formData },
             'API FormData URL'
         );
     },
