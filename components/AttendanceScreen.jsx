@@ -3,10 +3,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   AppState,
   Linking,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -505,6 +507,60 @@ export default function Attend() {
     setVisibleCount((prev) => prev + 10);
   }, []);
 
+  // Auto-attendance check: why background check-in/out may not be happening
+  const showDiagnostics = useCallback(async () => {
+    const d = await autoAttendance.getDiagnostics();
+    const lines = d.available
+      ? [
+          `Background service: ${d.running ? "Running ✓" : "NOT running ✗"}`,
+          `Location permission: ${d.permission}`,
+          `GPS: ${d.gps ? "On ✓" : "Off ✗"}`,
+          `Stores watched: ${d.geofences}`,
+          `Battery: ${
+            d.batteryUnrestricted === false
+              ? "Restricted ✗"
+              : d.batteryUnrestricted
+                ? "Unrestricted ✓"
+                : "Unknown"
+          }`,
+          "",
+        ]
+      : [];
+    const summary = d.problems.length
+      ? `Problems:\n• ${d.problems.join("\n• ")}`
+      : "No problems found ✓";
+    const report = `${lines.join("\n")}${summary}`;
+
+    // Android shows at most 3 buttons: one fix, Share log, Close
+    const buttons = [];
+    if (d.available) {
+      if (d.permission && !d.permission.includes("all the time")) {
+        buttons.push({ text: "App settings", onPress: () => Linking.openSettings() });
+      } else if (!d.running) {
+        buttons.push({
+          text: "Start again",
+          onPress: async () => {
+            await autoAttendance.start();
+            autoAttendance.getStatus().then(setAutoStatus);
+          },
+        });
+      } else if (d.batteryUnrestricted === false) {
+        buttons.push({ text: "Battery settings", onPress: () => autoAttendance.openBatterySettings() });
+      }
+      buttons.push({
+        text: "Share log",
+        onPress: async () => {
+          const log = await autoAttendance.getLogText();
+          Share.share({
+            message: `HT-ontrack auto attendance\n${report}\n\n--- log ---\n${log}`,
+          }).catch(() => {});
+        },
+      });
+    }
+    buttons.push({ text: "Close", style: "cancel" });
+    Alert.alert("Auto attendance check", report, buttons);
+  }, []);
+
   // ── derived ──────────────────────────────────────────────────────────────
   const isCheckedIn = currentStatus === "CHECKED_IN";
   const statusColor = isCheckedIn ? "#10B981" : "#EF4444";
@@ -568,30 +624,36 @@ export default function Attend() {
         todayDisplayStatus={todayDisplayStatus}
       />
 
-      {autoStatus && (!autoStatus.available || !autoStatus.always) ? (
-        <View style={[styles.autoCard, styles.autoCardWarn]}>
+      {/* Tap either banner for the auto-attendance check (Diagnostics) */}
+      {autoStatus &&
+      (!autoStatus.available || !autoStatus.always || !autoStatus.enabled) ? (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={showDiagnostics}
+          style={[styles.autoCard, styles.autoCardWarn]}
+        >
           <MaterialIcons name="location-disabled" size={20} color="#B91C1C" />
           <View style={{ flex: 1 }}>
             <Text style={[styles.autoText, { color: "#B91C1C" }]}>
-              {autoStatus.available
-                ? 'Auto attendance is off. Set location access to "Allow all the time" so you are checked in/out automatically.'
-                : "Auto attendance is not available in this version of the app. Please install the latest app."}
+              {!autoStatus.available
+                ? "Auto attendance is not available in this version of the app. Please install the latest app."
+                : !autoStatus.always
+                  ? 'Auto attendance is off. Set location access to "Allow all the time" so you are checked in/out automatically.'
+                  : "Auto attendance is not running in the background."}
             </Text>
             {autoStatus.available && (
-              <TouchableOpacity onPress={() => Linking.openSettings()}>
-                <Text style={styles.autoLink}>Open Settings</Text>
-              </TouchableOpacity>
+              <Text style={styles.autoLink}>Tap to check and fix</Text>
             )}
           </View>
-        </View>
+        </TouchableOpacity>
       ) : (
-        <View style={styles.autoCard}>
+        <TouchableOpacity activeOpacity={0.8} onPress={showDiagnostics} style={styles.autoCard}>
           <MaterialIcons name="gps-fixed" size={20} color="#D96A17" />
           <Text style={styles.autoText}>
             Auto tracking active — checked in/out automatically as you enter or
             leave the store. Re-entry triggers a new session.
           </Text>
-        </View>
+        </TouchableOpacity>
       )}
 
       <HistoryList

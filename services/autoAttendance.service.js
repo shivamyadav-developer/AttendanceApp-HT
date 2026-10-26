@@ -73,9 +73,12 @@ const CONFIG = BackgroundGeolocation && {
     },
     logger: {
         debug: false,
+        // Info in release too, so the log shared from Diagnostics shows why
+        // background events did or didn't arrive. Kept for 3 days.
         logLevel: __DEV__
             ? BackgroundGeolocation.LogLevel.Verbose
-            : BackgroundGeolocation.LogLevel.Error,
+            : BackgroundGeolocation.LogLevel.Info,
+        logMaxDays: 3,
     },
 };
 
@@ -281,6 +284,78 @@ export async function getStatus() {
         };
     } catch {
         return { available: true, enabled: false, always: false };
+    }
+}
+
+const AUTH_LABELS = {
+    0: 'Not asked yet',
+    1: 'Restricted',
+    2: 'Denied',
+    3: 'Allow all the time ✓',
+    4: 'Only while using the app ✗',
+    5: 'Denied (don’t ask again)',
+};
+
+// Everything needed to see why background check-in/out isn't happening.
+// Shown from the Attendance screen (tap the auto-tracking banner).
+export async function getDiagnostics() {
+    if (!BackgroundGeolocation) {
+        return { available: false, problems: ['This app version has no auto attendance (Expo Go / old build).'] };
+    }
+    const problems = [];
+    const d = { available: true };
+    try {
+        await ensureReady();
+        const [state, provider, geofences, batteryOk] = await Promise.all([
+            BackgroundGeolocation.getState(),
+            BackgroundGeolocation.getProviderState(),
+            BackgroundGeolocation.getGeofences(),
+            BackgroundGeolocation.deviceSettings.isIgnoringBatteryOptimizations().catch(() => null),
+        ]);
+        d.running = !!state.enabled;
+        d.mode = state.trackingMode === 0 ? 'Geofences' : 'Location';
+        d.permission = AUTH_LABELS[provider.status] ?? `Unknown (${provider.status})`;
+        d.gps = !!provider.enabled;
+        d.geofences = geofences.length;
+        d.batteryUnrestricted = batteryOk;
+        d.pending = !!(await AsyncStorage.getItem(PENDING_KEY));
+        d.loggedIn = !!(await getEmployeeNumber());
+
+        if (!d.loggedIn) problems.push('Not logged in.');
+        if (!d.running) problems.push('Background service is NOT running.');
+        if (provider.status !== BackgroundGeolocation.AuthorizationStatus.Always) {
+            problems.push('Location is not set to “Allow all the time”.');
+        }
+        if (!d.gps) problems.push('Location / GPS is turned off.');
+        if (!d.geofences) problems.push('No store areas are being watched.');
+        if (batteryOk === false) problems.push('Battery optimisation is ON for this app (it can be killed).');
+    } catch (e) {
+        problems.push(`Error reading status: ${e?.message || e}`);
+    }
+    d.problems = problems;
+    return d;
+}
+
+// Opens Android's "ignore battery optimisation" screen for this app.
+export async function openBatterySettings() {
+    if (!BackgroundGeolocation) return false;
+    try {
+        const request = await BackgroundGeolocation.deviceSettings.showIgnoreBatteryOptimizations();
+        return await BackgroundGeolocation.deviceSettings.show(request);
+    } catch (e) {
+        console.warn('[AutoAttendance] Battery settings:', e?.message);
+        return false;
+    }
+}
+
+// Last part of the plugin log, for sharing with support.
+export async function getLogText(maxChars = 60000) {
+    if (!BackgroundGeolocation) return '';
+    try {
+        const log = await BackgroundGeolocation.logger.getLog({ order: -1, limit: 400 });
+        return String(log || '').slice(0, maxChars);
+    } catch (e) {
+        return `Could not read log: ${e?.message || e}`;
     }
 }
 
