@@ -85,10 +85,17 @@ export default function Checklists() {
       setLoadState({ loading: false, error: res.message || "Could not load checklists.", fromCache: false });
       return;
     }
+    const mine = res.data.filter((t) => t?.isActive !== false && sameRole(t.role, role));
     setChecklists(
-      res.data
-        .filter((t) => t?.isActive !== false && sameRole(t.role, role))
-        .map((t) => checklistFromTemplate(t, displayFor(t)))
+      mine.map((t) => {
+        const display = displayFor(t);
+        // Several templates with the same short name (e.g. three VM checklists):
+        // show each one's own API title so they can be told apart
+        const shared = mine.some((o) => o !== t && displayFor(o).title === display.title);
+        return shared
+          ? { ...checklistFromTemplate(t, { ...display, title: t.title }), subtitle: t.description || t.title }
+          : checklistFromTemplate(t, display);
+      })
     );
     setLoadState({ loading: false, error: null, fromCache: !!res.fromCache });
   }, []);
@@ -136,7 +143,7 @@ export default function Checklists() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 30 }}>
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 24 }}>
         {loadState.loading && !checklists.length ? (
           <View style={styles.stateBox}>
             <ActivityIndicator color="#D96A17" />
@@ -186,7 +193,7 @@ export default function Checklists() {
               onPress={() => setOpenId(c.id)}
             >
               <View style={[styles.cardIcon, { backgroundColor: `${c.color}1A` }]}>
-                <MaterialCommunityIcons name={c.icon} size={28} color={c.color} />
+                <MaterialCommunityIcons name={c.icon} size={22} color={c.color} />
               </View>
 
               <View style={{ flex: 1 }}>
@@ -215,7 +222,7 @@ export default function Checklists() {
                 )}
               </View>
 
-              <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+              <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
             </Pressable>
           );
         })}
@@ -259,12 +266,13 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 10,
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -272,16 +280,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   cardIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
   },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: NAVY },
-  cardSub: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  cardMeta: { fontSize: 11, color: "#9CA3AF", marginTop: 4 },
-  cardFooter: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 },
+  cardTitle: { fontSize: 14, fontWeight: "800", color: NAVY },
+  cardSub: { fontSize: 11, color: "#6B7280", marginTop: 1 },
+  cardMeta: { fontSize: 10, color: "#9CA3AF", marginTop: 2 },
+  cardFooter: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 5 },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",

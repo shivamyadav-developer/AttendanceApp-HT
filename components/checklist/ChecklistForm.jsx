@@ -286,7 +286,7 @@ const ChecklistItem = memo(function ChecklistItem({
             >
               <Ionicons name="cloud-upload-outline" size={26} color={ORANGE} />
               <Text style={styles.addPhotoText}>Upload signature image</Text>
-              <Text style={styles.sigUploadHint}>Take a photo or choose from gallery</Text>
+              <Text style={styles.sigUploadHint}>Take a photo of the signature</Text>
             </Pressable>
           )}
         </>
@@ -398,20 +398,9 @@ export default function ChecklistForm({ checklist, onBack }) {
         }
         add(await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 0.7 }));
       };
-      const choosePhoto = async () => {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-          Alert.alert("Gallery Permission", "Gallery permission is required to choose a photo.");
-          return;
-        }
-        add(await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7 }));
-      };
 
-      Alert.alert("Add photo", "", [
-        { text: "Take Photo", onPress: () => takePhoto().catch(() => Alert.alert("Camera Error", "Unable to take photo.")) },
-        { text: "Choose from Gallery", onPress: () => choosePhoto().catch(() => Alert.alert("Gallery Error", "Unable to choose photo.")) },
-        { text: "Cancel", style: "cancel" },
-      ]);
+      // Camera only — no gallery, so photos are taken on the spot
+      takePhoto().catch(() => Alert.alert("Camera Error", "Unable to take photo."));
     },
     [onChange, checklist.id]
   );

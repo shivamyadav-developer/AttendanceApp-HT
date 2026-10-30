@@ -162,7 +162,11 @@ async function submit(pending) {
             attendance?.durationMinutes || 0
         );
     }
-    eventEmitter.emit('AUTO_ATTENDANCE', { action, time });
+    eventEmitter.emit('AUTO_ATTENDANCE', {
+        action,
+        time,
+        durationMinutes: attendance?.durationMinutes || 0,
+    });
     eventEmitter.emit('ATTENDANCE_UPDATED');
 }
 

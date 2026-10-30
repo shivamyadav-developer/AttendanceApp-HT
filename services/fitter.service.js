@@ -15,6 +15,15 @@ export const isFittingCompleted = (ticket) =>
     ticket?.fitting?.isFittingDone === true ||
     FITTING_COMPLETED_STATUSES.includes(ticket?.status);
 
+// Some endpoints answer HTTP 200 with { success: false } (e.g. wrong OTP) —
+// treat that as an error instead of a success.
+const ensureSuccess = (response, fallback) => {
+    if (response?.success === false) {
+        throw new Error(response.message || fallback);
+    }
+    return response;
+};
+
 class FitterService {
     // --------------------------------------------------
     // Get logged-in fitter information
@@ -264,11 +273,11 @@ class FitterService {
             );
         }
 
-        return await api.post(
-            '/tickets/otp-send',
-            {
-                customerMobile,
-            }
+        return ensureSuccess(
+            await api.post('/tickets/otp-send', {
+                customerMobile: String(customerMobile),
+            }),
+            'Unable to send customer OTP.'
         );
     }
 
@@ -291,12 +300,12 @@ class FitterService {
             );
         }
 
-        return await api.post(
-            '/tickets/otp-verify',
-            {
-                customerMobile,
-                otp,
-            }
+        return ensureSuccess(
+            await api.post('/tickets/otp-verify', {
+                customerMobile: String(customerMobile),
+                otp: String(otp),
+            }),
+            'Customer OTP verification failed.'
         );
     }
 
@@ -324,7 +333,7 @@ class FitterService {
             );
         }
 
-        return await api.put(
+        return ensureSuccess(await api.put(
             `/tickets/${encodeURIComponent(ticketId)}`,
             {
                 status,
@@ -337,7 +346,7 @@ class FitterService {
                     user.employeeName ||
                     'Fitter',
             }
-        );
+        ), 'Unable to update fitting status.');
     }
 
     // --------------------------------------------------
@@ -359,9 +368,12 @@ class FitterService {
             );
         }
 
-        return await api.putFormData(
-            `/tickets/${encodeURIComponent(ticketId)}`,
-            formData
+        return ensureSuccess(
+            await api.putFormData(
+                `/tickets/${encodeURIComponent(ticketId)}`,
+                formData
+            ),
+            'Unable to complete fitting.'
         );
     }
 }

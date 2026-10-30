@@ -58,6 +58,50 @@ const computeDurationValue = (isCheckedIn, checkInISO, closedMinutes = 0) => {
   return `${h}h ${m}m ${s}s`;
 };
 
+const formatMinutes = (mins) => `${Math.floor(mins / 60)}h ${mins % 60}m`;
+
+// Today's Session right after a check-in/out, built from the API response so
+// the card changes at once. The history reload that follows replaces it.
+const sessionAfterAction = (prev, { action, time, durationMinutes }) => {
+  const today = new Date().toISOString().split("T")[0];
+  const base = prev?.date === today ? prev : null;
+
+  if (action === "in") {
+    return {
+      ...base,
+      date: today,
+      oldestCheckIn: base?.oldestCheckIn || time,
+      latestCheckOut: null,
+      totalDurationMinutes: base?.totalDurationMinutes || 0,
+      totalDurationFormatted: formatMinutes(base?.totalDurationMinutes || 0),
+      // A check-in after a check-out today is a new session
+      totalSessions: base ? (base.totalSessions || 1) + (base.latestCheckOut ? 1 : 0) : 1,
+      status: "OPEN",
+    };
+  }
+
+  if (!base) return prev;
+  const minutes = (base.totalDurationMinutes || 0) + (durationMinutes || 0);
+  return {
+    ...base,
+    latestCheckOut: time,
+    totalDurationMinutes: minutes,
+    totalDurationFormatted: formatMinutes(minutes),
+    status: base.status === "OPEN" ? "Present" : base.status,
+  };
+};
+
+// Has the history caught up with the last check-in/out shown on screen?
+const historyHasAction = (record, last) => {
+  if (!record) return false;
+  if (last.action === "in") return (record.totalSessions || 1) >= last.sessions;
+  return (
+    !!record.latestCheckOut &&
+    // 2 min allowance for the gap between the phone's and the server's clock
+    new Date(record.latestCheckOut).getTime() >= new Date(last.time).getTime() - 120000
+  );
+};
+
 // ─── isolated ticking component ────────────────────────────────────────────
 // Owns its own interval + state. Only THIS re-renders every second —
 // parent and siblings (stats row, history list) never do.
@@ -325,6 +369,9 @@ export default function Attend() {
   const [activeCheckIn, setActiveCheckIn] = useState(null);
 
   const refreshAttendanceDataRef = useRef(null);
+  // Last check-in/out shown from its API response: { action, time, sessions, at }
+  const lastActionRef = useRef(null);
+  const retryTimerRef = useRef(null);
 
   // ── STEP 1: Load from in-memory cache instantly (no API call) ────────────
   const loadFromCache = useCallback(async () => {
@@ -393,10 +440,21 @@ export default function Attend() {
       const [history] = await Promise.all([
         attendanceService.getAttendanceHistory(employeeNumber),
       ]);
+      // Failed — keep what is on screen instead of clearing Today's Session
+      if (!history.success) return;
+
       const today = new Date().toISOString().split("T")[0];
-      const todayRecord = history.success
-        ? history.data.find((a) => a.date === today) || null
-        : null;
+      const todayRecord = history.data.find((a) => a.date === today) || null;
+
+      // The server may not have the check-in/out just shown yet — keep the
+      // card from the response and ask again shortly (for up to a minute)
+      const last = lastActionRef.current;
+      if (last && Date.now() - last.at < 60000 && !historyHasAction(todayRecord, last)) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => refreshAttendanceDataRef.current?.(), 3000);
+        return;
+      }
+      lastActionRef.current = null;
 
       const status = attendanceService._deriveStatus(history);
 
@@ -422,7 +480,7 @@ export default function Attend() {
       setCurrentStatus(status);
       setTodayAttendance(effectiveTodayRecord);
       setActiveCheckIn(openSessionIsToday ? openSession : null);
-      if (history.success) setAttendanceHistory(history.data);
+      setAttendanceHistory(history.data);
       autoAttendance.getStatus().then(setAutoStatus);
 
       locationService.getCurrentLocation().then((location) => {
@@ -472,10 +530,22 @@ export default function Attend() {
       }
     };
 
-    // Entered / left a store — show the new status right away;
-    // ATTENDANCE_UPDATED (emitted next) reloads the session from the API.
-    const handleAutoAttendance = ({ action }) => {
-      setCurrentStatus(action === "in" ? "CHECKED_IN" : "CHECKED_OUT");
+    // Entered / left a store — show the new status and Today's Session right
+    // away from the check-in/out response; ATTENDANCE_UPDATED (emitted next)
+    // reloads the session from the API.
+    const handleAutoAttendance = (event) => {
+      setCurrentStatus(event.action === "in" ? "CHECKED_IN" : "CHECKED_OUT");
+      setActiveCheckIn(event.action === "in" ? event.time : null);
+      setTodayAttendance((prev) => {
+        const next = sessionAfterAction(prev, event);
+        lastActionRef.current = {
+          action: event.action,
+          time: event.time,
+          sessions: next?.totalSessions || 1,
+          at: Date.now(),
+        };
+        return next;
+      });
     };
 
     // Back from Settings (e.g. after allowing "all the time") — refresh the banner
@@ -493,6 +563,7 @@ export default function Attend() {
       eventEmitter.off("LOCATION_UPDATED", handleLocationUpdate);
       eventEmitter.off("AUTO_ATTENDANCE", handleAutoAttendance);
       appStateSub.remove();
+      clearTimeout(retryTimerRef.current);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
